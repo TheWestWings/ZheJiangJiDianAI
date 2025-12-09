@@ -7,15 +7,7 @@ import { useNavigatePage } from '@/hooks/logic-hooks/navigate-hooks';
 import { useNavigateWithFromState } from '@/hooks/route-hook';
 import { cn } from '@/lib/utils';
 import { Routes } from '@/routes';
-import {
-  ChevronDown,
-  File,
-  Github,
-  House,
-  MessageSquareText,
-  Star,
-  Zap,
-} from 'lucide-react';
+import { ChevronDown, File, Github, House, Star, Zap } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { useLocation } from 'umi';
 
@@ -26,10 +18,7 @@ export function Header() {
   const { navigateToHome, navigateToProfile } = useNavigatePage();
 
   const tagsData = useMemo(
-    () => [
-      { path: Routes.Chats, name: t('chat'), icon: MessageSquareText },
-      { path: Routes.Files, name: t('fileManager'), icon: File },
-    ],
+    () => [{ path: Routes.Files, name: t('fileManager'), icon: File }],
     [t],
   );
 

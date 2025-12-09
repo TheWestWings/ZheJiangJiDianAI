@@ -15,18 +15,21 @@
       :global(.ant-card-body) {
         padding: 10px;
       }
+
       .cubeIcon {
         &:hover {
           cursor: pointer;
         }
       }
     }
+
     .chatAppCardSelected {
       :global(.ant-card-body) {
         background-color: @gray11;
         border-radius: 8px;
       }
     }
+
     .chatAppCardSelectedDark {
       :global(.ant-card-body) {
         background-color: rgba(255, 255, 255, 0.1);
@@ -34,56 +37,86 @@
       }
     }
   }
+
   .chatTitleWrapper {
-    width: 220px;
-    padding: 26px 0;
+    width: 260px; // 稍微加宽一点以容纳浮动效果
+    padding: 26px 12px;
     transition: width 0.3s ease;
+    background-color: #f9f9f9; // 给侧边栏一个淡背景色
   }
 
   // 折叠状态下的样式
   .chatTitleWrapperCollapsed {
-    width: 50px;
+    width: 60px;
     padding: 26px 5px;
+    background-color: #f9f9f9;
   }
 
   .chatTitle {
-    padding: 5px 15px;
+    padding: 5px 5px;
+    margin-bottom: 10px;
   }
 
   .chatTitleContent {
-    padding: 5px 10px;
-    overflow: auto;
+    padding: 5px 5px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: calc(100vh - 120px); // 限制高度以支持滚动
   }
 
   .chatSpin {
     :global(.ant-spin-container) {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px; // 增加间距
     }
   }
 
   .chatTitleCard {
+    border-radius: 12px; // 增加圆角
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); // 默认轻微阴影
+    background: #ffffff;
+    transition: all 0.3s ease;
+
     :global(.ant-card-body) {
-      padding: 8px;
+      padding: 12px;
+    }
+
+    &:hover {
+      transform: translateY(-2px); // 浮动效果
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); // 悬浮加深阴影
     }
   }
 
   .chatTitleCardSelected {
+    background: linear-gradient(135deg, #e6f7ff 0%, #ffffff 100%);
+    border: 1px solid #1677ff;
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.15);
+
     :global(.ant-card-body) {
-      background-color: @gray11;
-      border-radius: 8px;
+      padding: 12px;
+      // background-color: @gray11; // 移除旧背景，使用渐变
+      border-radius: 12px;
     }
+
+    // 选中状态也保持浮动
+    transform: translateY(-2px);
   }
+
   .chatTitleCardSelectedDark {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+
     :global(.ant-card-body) {
-      background-color: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
+      padding: 12px;
+      border-radius: 12px;
     }
   }
 
   .divider {
     margin: 0;
     height: 100%;
+    display: none; // 隐藏分割线，用背景色区分
   }
 }

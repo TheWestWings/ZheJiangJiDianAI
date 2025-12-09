@@ -1,7 +1,6 @@
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchAppConf } from '@/hooks/logic-hooks';
 import { useNavigateWithFromState } from '@/hooks/route-hook';
-import { MessageOutlined } from '@ant-design/icons';
 import { Flex, Layout, Radio, Space, theme } from 'antd';
 import { MouseEventHandler, useCallback, useMemo } from 'react';
 import { useLocation } from 'umi';
@@ -21,10 +20,7 @@ const RagHeader = () => {
   const { t } = useTranslate('header');
   const appConf = useFetchAppConf();
   const { theme: themeRag } = useTheme();
-  const tagsData = useMemo(
-    () => [{ path: '/chat', name: t('chat'), icon: MessageOutlined }],
-    [t],
-  );
+  const tagsData = useMemo(() => [], [t]);
 
   const currentPath = useMemo(() => {
     return (
