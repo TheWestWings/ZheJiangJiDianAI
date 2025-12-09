@@ -240,7 +240,6 @@ export const useRemoveNextDialog = () => {
 
 export const useFetchNextConversationList = () => {
   const { dialogId } = useGetChatSearchParams();
-  const { handleClickConversation } = useClickConversationCard();
   const {
     data,
     isFetching: loading,
@@ -253,14 +252,8 @@ export const useFetchNextConversationList = () => {
     enabled: !!dialogId,
     queryFn: async () => {
       const { data } = await chatService.listConversation({ dialogId });
-      if (data.code === 0) {
-        if (data.data.length > 0) {
-          handleClickConversation(data.data[0].id, '');
-        } else {
-          handleClickConversation('', '');
-        }
-      }
-      return data?.data;
+      // 不自动选择第一个对话，让用户看到初始居中界面
+      return data?.data ?? [];
     },
   });
 

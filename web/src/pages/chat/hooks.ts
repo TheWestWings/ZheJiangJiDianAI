@@ -26,7 +26,6 @@ import { IConversation, IDialog, Message } from '@/interfaces/database/chat';
 import { getFileExtension } from '@/utils';
 import api from '@/utils/api';
 import { getConversationId } from '@/utils/chat';
-import { translationService } from '@/services/translationService';
 import { useMutationState } from '@tanstack/react-query';
 import { get } from 'lodash';
 import trim from 'lodash/trim';
@@ -419,7 +418,7 @@ export const useSendNextMessage = (controller: AbortController) => {
   const handleSendMessage = useCallback(
     async (message: Message) => {
       const isNew = getConversationIsNew();
-      
+
       if (isNew !== 'true') {
         sendMessage({ message });
       } else {
@@ -587,9 +586,10 @@ export const useRenameConversation = () => {
 };
 
 export const useGetSendButtonDisabled = () => {
-  const { dialogId, conversationId } = useGetChatSearchParams();
+  const { dialogId } = useGetChatSearchParams();
 
-  return dialogId === '' || conversationId === '';
+  // 只检查 dialogId，不检查 conversationId，允许创建新对话
+  return dialogId === '';
 };
 
 export const useSendButtonDisabled = (value: string) => {

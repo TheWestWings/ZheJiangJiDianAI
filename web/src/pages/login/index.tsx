@@ -38,7 +38,7 @@ const Login = () => {
           password: rsaPassWord,
         });
         if (code === 0) {
-          navigate('/knowledge');
+          navigate('/chat');
         }
       } else {
         const code = await register({
