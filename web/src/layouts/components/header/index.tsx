@@ -1,9 +1,7 @@
-import { ReactComponent as KnowledgeBaseIcon } from '@/assets/svg/knowledge-base.svg';
-import { ReactComponent as WriteIcon } from '@/assets/svg/write.svg';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchAppConf } from '@/hooks/logic-hooks';
 import { useNavigateWithFromState } from '@/hooks/route-hook';
-import { MessageOutlined, SearchOutlined } from '@ant-design/icons';
+import { MessageOutlined } from '@ant-design/icons';
 import { Flex, Layout, Radio, Space, theme } from 'antd';
 import { MouseEventHandler, useCallback, useMemo } from 'react';
 import { useLocation } from 'umi';
@@ -24,12 +22,7 @@ const RagHeader = () => {
   const appConf = useFetchAppConf();
   const { theme: themeRag } = useTheme();
   const tagsData = useMemo(
-    () => [
-      { path: '/chat', name: t('chat'), icon: MessageOutlined },
-      { path: '/knowledge', name: t('knowledgeBase'), icon: KnowledgeBaseIcon },
-      { path: '/write', name: t('write'), icon: WriteIcon },
-      { path: '/search', name: t('search'), icon: SearchOutlined },
-    ],
+    () => [{ path: '/chat', name: t('chat'), icon: MessageOutlined }],
     [t],
   );
 

@@ -12,9 +12,7 @@ import {
   File,
   Github,
   House,
-  Library,
   MessageSquareText,
-  Search,
   Star,
   Zap,
 } from 'lucide-react';
@@ -29,9 +27,7 @@ export function Header() {
 
   const tagsData = useMemo(
     () => [
-      { path: Routes.Datasets, name: t('knowledgeBase'), icon: Library },
       { path: Routes.Chats, name: t('chat'), icon: MessageSquareText },
-      { path: Routes.Searches, name: t('search'), icon: Search },
       { path: Routes.Files, name: t('fileManager'), icon: File },
     ],
     [t],
