@@ -123,7 +123,7 @@ const ChatContainer = ({ controller, fontSize = 20 }: IProps) => {
           >
             <div className={styles.initialContent}>
               <Title level={1} className={styles.appTitle}>
-                校园百事通
+                浙机电校园百事通
               </Title>
               <div className={styles.initialInputWrapper}>
                 <MessageInput
