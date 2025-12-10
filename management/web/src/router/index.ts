@@ -161,10 +161,10 @@ export const constantRoutes: RouteRecordRaw[] = [
             {
                 path: "index",
                 component: () => import("@/pages/assistant/index.vue"),
-                name: "Assistant",
+                name: "ModelManagement",
                 meta: {
-                    title: "助理管理",
-                    elIcon: "ChatDotRound",
+                    title: "模型管理",
+                    elIcon: "Monitor",
                     affix: false,
                     keepAlive: true
                 }

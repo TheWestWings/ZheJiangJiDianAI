@@ -97,6 +97,9 @@ export default {
   ask: `${api_host}/conversation/ask`,
   mindmap: `${api_host}/conversation/mindmap`,
   getRelatedQuestions: `${api_host}/conversation/related_questions`,
+  // 获取可用的模型和知识库列表
+  availableModels: `${api_host}/conversation/available_models`,
+  availableKbs: `${api_host}/conversation/available_kbs`,
   // chat for external
   createToken: `${api_host}/api/new_token`,
   listToken: `${api_host}/api/token_list`,

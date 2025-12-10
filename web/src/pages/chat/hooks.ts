@@ -390,10 +390,26 @@ export const useSendNextMessage = (controller: AbortController) => {
       currentConversationId?: string;
       messages?: Message[];
     }) => {
+      // 从 localStorage 获取用户选择的模型和知识库
+      const selectedModel = localStorage.getItem('chat_selected_model') || '';
+      const selectedKbsStr = localStorage.getItem('chat_selected_kbs');
+      let selectedKbs: string[] = [];
+      if (selectedKbsStr) {
+        try {
+          selectedKbs = JSON.parse(selectedKbsStr);
+        } catch {
+          selectedKbs = [];
+        }
+      }
+
       const res = await send(
         {
           conversation_id: currentConversationId ?? conversationId,
           messages: [...(messages ?? derivedMessages ?? []), message],
+          // 传递动态选择的模型和知识库
+          // 始终发送 kb_ids，空数组表示不使用知识库
+          ...(selectedModel && { llm_id: selectedModel }),
+          kb_ids: selectedKbs,
         },
         controller,
       );

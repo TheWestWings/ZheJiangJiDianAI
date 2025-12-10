@@ -100,23 +100,29 @@ def chat_solo(dialog, messages, stream=True):
 
 def chat(dialog, messages, stream=True, **kwargs):
     assert messages[-1]["role"] == "user", "The last content of this conversation is not from user."
-    if not dialog.kb_ids:
+    
+    # 支持从请求中动态传入 llm_id 和 kb_ids，覆盖 dialog 的默认值
+    # 使用 is not None 检查，这样空数组 [] 也能被正确处理（表示不使用知识库）
+    llm_id = kwargs.get("llm_id") if kwargs.get("llm_id") else dialog.llm_id
+    kb_ids = kwargs.get("kb_ids") if kwargs.get("kb_ids") is not None else dialog.kb_ids
+    
+    if not kb_ids:
         for ans in chat_solo(dialog, messages, stream):
             yield ans
         return
 
     chat_start_ts = timer()
 
-    if llm_id2llm_type(dialog.llm_id) == "image2text":
-        llm_model_config = TenantLLMService.get_model_config(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
+    if llm_id2llm_type(llm_id) == "image2text":
+        llm_model_config = TenantLLMService.get_model_config(dialog.tenant_id, LLMType.IMAGE2TEXT, llm_id)
     else:
-        llm_model_config = TenantLLMService.get_model_config(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
+        llm_model_config = TenantLLMService.get_model_config(dialog.tenant_id, LLMType.CHAT, llm_id)
 
     max_tokens = llm_model_config.get("max_tokens", 8192)
 
     check_llm_ts = timer()
 
-    kbs = KnowledgebaseService.get_by_ids(dialog.kb_ids)
+    kbs = KnowledgebaseService.get_by_ids(kb_ids)
     embedding_list = list(set([kb.embd_id for kb in kbs]))
     if len(embedding_list) != 1:
         yield {"answer": "**ERROR**: Knowledge bases use different embedding models.", "reference": []}
@@ -143,15 +149,15 @@ def chat(dialog, messages, stream=True, **kwargs):
 
     bind_embedding_ts = timer()
 
-    if llm_id2llm_type(dialog.llm_id) == "image2text":
-        chat_mdl = LLMBundle(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
+    if llm_id2llm_type(llm_id) == "image2text":
+        chat_mdl = LLMBundle(dialog.tenant_id, LLMType.IMAGE2TEXT, llm_id)
     else:
-        chat_mdl = LLMBundle(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
+        chat_mdl = LLMBundle(dialog.tenant_id, LLMType.CHAT, llm_id)
 
     bind_llm_ts = timer()
 
     prompt_config = dialog.prompt_config
-    field_map = KnowledgebaseService.get_field_map(dialog.kb_ids)
+    field_map = KnowledgebaseService.get_field_map(kb_ids)
     tts_mdl = None
     if prompt_config.get("tts"):
         tts_mdl = LLMBundle(dialog.tenant_id, LLMType.TTS)
@@ -199,7 +205,7 @@ def chat(dialog, messages, stream=True, **kwargs):
             " ".join(questions),
             embd_mdl,
             tenant_ids,
-            dialog.kb_ids,
+            kb_ids,
             1,
             dialog.top_n,
             dialog.similarity_threshold,

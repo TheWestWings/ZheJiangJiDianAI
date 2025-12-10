@@ -6,13 +6,20 @@ import {
   useUploadAndParseDocument,
 } from '@/hooks/document-hooks';
 import { ITempFileInfo, useUploadTempFile } from '@/hooks/temp-file-hooks';
+import {
+  useChatSelections,
+  useFetchAvailableKnowledgebases,
+  useFetchAvailableModels,
+} from '@/hooks/use-chat-options';
 import { getExtension } from '@/utils/document-util';
 import { formatBytes } from '@/utils/file-util';
 import {
   CloseCircleOutlined,
+  DatabaseOutlined,
   InfoCircleOutlined,
   LoadingOutlined,
   PaperClipOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import type { GetProp, UploadFile } from 'antd';
 import {
@@ -22,8 +29,10 @@ import {
   Flex,
   Input,
   List,
+  Select,
   Space,
   Spin,
+  Tooltip,
   Typography,
   Upload,
   UploadProps,
@@ -126,6 +135,12 @@ const MessageInput = ({
 
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [tempFiles, setTempFiles] = useState<ITempFileInfo[]>([]);
+
+  // 模型和知识库选择
+  const { models } = useFetchAvailableModels();
+  const { knowledgebases } = useFetchAvailableKnowledgebases();
+  const { selectedModel, selectedKbs, setSelectedModel, setSelectedKbs } =
+    useChatSelections();
 
   const handlePreview = async (file: UploadFile) => {
     if (!file.url && !file.preview) {
@@ -336,100 +351,141 @@ const MessageInput = ({
         onChange={onInputChange}
       />
       <Divider style={{ margin: '5px 30px 10px 0px' }} />
-      <Flex justify="space-between" align="center">
-        {fileList.length > 0 && (
-          <List
-            grid={{
-              gutter: 16,
-              xs: 1,
-              sm: 1,
-              md: 1,
-              lg: 1,
-              xl: 2,
-              xxl: 4,
-            }}
-            dataSource={fileList}
-            className={styles.listWrapper}
-            renderItem={(item) => {
-              const id = getFileId(item);
-              const tempFileInfo = useTempUpload
-                ? get(item, 'response.data')
-                : null;
-              const documentInfo = getDocumentInfoById(id);
-              const fileExtension = getExtension(
-                tempFileInfo?.filename || documentInfo?.name || '',
-              );
-              const fileName =
-                tempFileInfo?.filename ||
-                item.originFileObj?.name ||
-                documentInfo?.name ||
-                '';
-              const fileSize = tempFileInfo?.size || documentInfo?.size || 0;
-
-              return (
-                <List.Item>
-                  <Card className={styles.documentCard}>
-                    <Flex gap={10} align="center">
-                      {item.status === 'uploading' ? (
-                        <Spin
-                          indicator={
-                            <LoadingOutlined style={{ fontSize: 24 }} spin />
-                          }
-                        />
-                      ) : item.status === 'error' ? (
-                        <InfoCircleOutlined size={30}></InfoCircleOutlined>
-                      ) : (
-                        <FileIcon id={id} name={fileName}></FileIcon>
-                      )}
-                      <Flex vertical style={{ width: '90%' }}>
-                        <Text
-                          ellipsis={{ tooltip: fileName }}
-                          className={styles.nameText}
-                        >
-                          <b> {fileName}</b>
-                        </Text>
-                        {item.status === 'error' ? (
-                          t('uploadFailed')
-                        ) : (
-                          <>
-                            {item.percent !== 100 ? (
-                              t('uploading')
-                            ) : !item.response ? (
-                              t('parsing')
-                            ) : (
-                              <Space>
-                                <span>{fileExtension?.toUpperCase()},</span>
-                                <span>{formatBytes(fileSize)}</span>
-                              </Space>
-                            )}
-                          </>
-                        )}
-                      </Flex>
-                    </Flex>
-
-                    {item.status !== 'uploading' && (
-                      <span className={styles.deleteIcon}>
-                        <CloseCircleOutlined
-                          onClick={() => handleRemove(item)}
-                        />
-                      </span>
-                    )}
-                  </Card>
-                </List.Item>
-              );
-            }}
-          />
-        )}
-        <Flex
-          gap={5}
-          align="center"
-          justify="flex-end"
-          style={{
-            paddingRight: 10,
-            paddingBottom: 10,
-            width: fileList.length > 0 ? '50%' : '100%',
+      {fileList.length > 0 && (
+        <List
+          grid={{
+            gutter: 16,
+            xs: 1,
+            sm: 1,
+            md: 1,
+            lg: 1,
+            xl: 2,
+            xxl: 4,
           }}
-        >
+          dataSource={fileList}
+          className={styles.listWrapper}
+          renderItem={(item) => {
+            const id = getFileId(item);
+            const tempFileInfo = useTempUpload
+              ? get(item, 'response.data')
+              : null;
+            const documentInfo = getDocumentInfoById(id);
+            const fileExtension = getExtension(
+              tempFileInfo?.filename || documentInfo?.name || '',
+            );
+            const fileName =
+              tempFileInfo?.filename ||
+              item.originFileObj?.name ||
+              documentInfo?.name ||
+              '';
+            const fileSize = tempFileInfo?.size || documentInfo?.size || 0;
+
+            return (
+              <List.Item>
+                <Card className={styles.documentCard}>
+                  <Flex gap={10} align="center">
+                    {item.status === 'uploading' ? (
+                      <Spin
+                        indicator={
+                          <LoadingOutlined style={{ fontSize: 24 }} spin />
+                        }
+                      />
+                    ) : item.status === 'error' ? (
+                      <InfoCircleOutlined size={30}></InfoCircleOutlined>
+                    ) : (
+                      <FileIcon id={id} name={fileName}></FileIcon>
+                    )}
+                    <Flex vertical style={{ width: '90%' }}>
+                      <Text
+                        ellipsis={{ tooltip: fileName }}
+                        className={styles.nameText}
+                      >
+                        <b> {fileName}</b>
+                      </Text>
+                      {item.status === 'error' ? (
+                        t('uploadFailed')
+                      ) : (
+                        <>
+                          {item.percent !== 100 ? (
+                            t('uploading')
+                          ) : !item.response ? (
+                            t('parsing')
+                          ) : (
+                            <Space>
+                              <span>{fileExtension?.toUpperCase()},</span>
+                              <span>{formatBytes(fileSize)}</span>
+                            </Space>
+                          )}
+                        </>
+                      )}
+                    </Flex>
+                  </Flex>
+
+                  {item.status !== 'uploading' && (
+                    <span className={styles.deleteIcon}>
+                      <CloseCircleOutlined onClick={() => handleRemove(item)} />
+                    </span>
+                  )}
+                </Card>
+              </List.Item>
+            );
+          }}
+        />
+      )}
+      <Flex
+        align="center"
+        justify="space-between"
+        style={{
+          paddingRight: 10,
+          paddingBottom: 10,
+          paddingLeft: 10,
+          width: '100%',
+        }}
+      >
+        {/* 左侧：模型和知识库选择器 */}
+        <Space size="small">
+          <Tooltip title="选择模型">
+            <Space size={4}>
+              <RobotOutlined style={{ color: '#666' }} />
+              <Select
+                placeholder="模型"
+                style={{ width: 140 }}
+                value={selectedModel || undefined}
+                onChange={setSelectedModel}
+                options={models?.map((m) => ({
+                  value: m.llm_name,
+                  label: m.llm_name,
+                }))}
+                allowClear
+                size="small"
+                variant="borderless"
+              />
+            </Space>
+          </Tooltip>
+          <Tooltip title="选择知识库">
+            <Space size={4}>
+              <DatabaseOutlined style={{ color: '#666' }} />
+              <Select
+                mode="multiple"
+                placeholder="知识库"
+                style={{ minWidth: 120, maxWidth: 250 }}
+                value={selectedKbs}
+                onChange={setSelectedKbs}
+                options={knowledgebases?.map((kb) => ({
+                  value: kb.id,
+                  label: kb.name,
+                }))}
+                allowClear
+                size="small"
+                maxTagCount={1}
+                variant="borderless"
+              />
+            </Space>
+          </Tooltip>
+        </Space>
+
+        {/* 右侧：上传和发送按钮 */}
+        <Flex gap={5} align="center">
           {showUploadIcon && (
             <Upload
               onPreview={handlePreview}

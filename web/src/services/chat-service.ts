@@ -29,6 +29,8 @@ const {
   getRelatedQuestions,
   uploadTempFile,
   getTempFile,
+  availableModels,
+  availableKbs,
 } = api;
 
 const methods = {
@@ -134,6 +136,14 @@ const methods = {
   },
   getTempFile: {
     url: getTempFile,
+    method: 'get',
+  },
+  availableModels: {
+    url: availableModels,
+    method: 'get',
+  },
+  availableKbs: {
+    url: availableKbs,
     method: 'get',
   },
 } as const;

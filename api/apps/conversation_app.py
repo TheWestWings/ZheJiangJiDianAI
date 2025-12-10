@@ -791,3 +791,65 @@ Related search terms:
         {"temperature": 0.9},
     )
     return get_json_result(data=[re.sub(r"^[0-9]\. ", "", a) for a in ans.split("\n") if re.match(r"^[0-9]\. ", a)])
+
+
+@manager.route("/available_models", methods=["GET"])  # type: ignore # noqa: F821
+@login_required
+def list_available_models():
+    """获取当前用户可用的模型列表"""
+    try:
+        from api.db.services.llm_service import TenantLLMService
+        
+        # 获取当前用户配置的模型
+        models = TenantLLMService.query(tenant_id=current_user.id, model_type="chat")
+        
+        result = []
+        for model in models:
+            result.append({
+                "llm_name": model.llm_name,
+                "llm_factory": model.llm_factory,
+                "model_type": model.model_type,
+            })
+        
+        return get_json_result(data=result)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route("/available_kbs", methods=["GET"])  # type: ignore # noqa: F821
+@login_required
+def list_available_kbs():
+    """获取当前用户可用的知识库列表"""
+    try:
+        from api.db.services.knowledgebase_service import KnowledgebaseService
+        from api.db.services.user_service import TenantService
+        
+        # 获取用户关联的所有租户
+        tenants = TenantService.get_joined_tenants_by_user_id(current_user.id)
+        tenant_ids = [t["tenant_id"] for t in tenants]
+        
+        # 获取所有可访问的知识库
+        kbs, _ = KnowledgebaseService.get_by_tenant_ids(
+            tenant_ids, 
+            current_user.id, 
+            1, 
+            200, 
+            "create_time", 
+            True, 
+            "", 
+            None
+        )
+        
+        result = []
+        for kb in kbs:
+            result.append({
+                "id": kb.get("id"),
+                "name": kb.get("name"),
+                "description": kb.get("description", ""),
+                "doc_num": kb.get("doc_num", 0),
+            })
+        
+        return get_json_result(data=result)
+    except Exception as e:
+        return server_error_response(e)
+
