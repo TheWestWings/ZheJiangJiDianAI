@@ -396,3 +396,223 @@ def get_llm_list():
     finally:
         cursor.close()
         conn.close()
+
+
+def get_all_models_with_status():
+    """
+    获取所有已配置的模型及其全局启用状态
+    用于后台管理页面展示
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        sql = """
+            SELECT DISTINCT 
+                llm_name, 
+                llm_factory, 
+                model_type,
+                api_base,
+                MAX(global_enabled) as global_enabled
+            FROM tenant_llm
+            WHERE model_type = 'chat'
+            GROUP BY llm_name, llm_factory, model_type, api_base
+            ORDER BY llm_factory, llm_name
+        """
+        cursor.execute(sql)
+        models = cursor.fetchall()
+        
+        # 转换 global_enabled 为布尔值
+        for model in models:
+            model['global_enabled'] = bool(model.get('global_enabled', 0))
+        
+        return models
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def set_model_global_enabled(llm_name, llm_factory, enabled):
+    """
+    设置模型的全局启用状态
+    :param llm_name: 模型名称
+    :param llm_factory: 模型厂商
+    :param enabled: 是否启用 (True/False)
+    :return: 影响的行数
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        enabled_value = 1 if enabled else 0
+        sql = """
+            UPDATE tenant_llm 
+            SET global_enabled = %s 
+            WHERE llm_name = %s AND llm_factory = %s
+        """
+        cursor.execute(sql, (enabled_value, llm_name, llm_factory))
+        conn.commit()
+        return cursor.rowcount
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_globally_enabled_models():
+    """
+    获取所有全局启用的模型
+    用于前台展示可选模型
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        sql = """
+            SELECT DISTINCT 
+                llm_name, 
+                llm_factory, 
+                model_type
+            FROM tenant_llm
+            WHERE model_type = 'chat' AND global_enabled = 1
+            ORDER BY llm_factory, llm_name
+        """
+        cursor.execute(sql)
+        models = cursor.fetchall()
+        return models
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def create_model(llm_name, llm_factory, model_type, api_base, api_key, global_enabled=True):
+    """
+    创建新模型
+    :param llm_name: 模型名称
+    :param llm_factory: 模型厂商
+    :param model_type: 模型类型
+    :param api_base: API Base URL
+    :param api_key: API Key
+    :param global_enabled: 是否全局启用
+    :return: 是否成功
+    """
+    import uuid
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 检查是否已存在相同的模型
+        check_sql = """
+            SELECT COUNT(*) as count FROM tenant_llm 
+            WHERE llm_name = %s AND llm_factory = %s
+        """
+        cursor.execute(check_sql, (llm_name, llm_factory))
+        result = cursor.fetchone()
+        if result and result[0] > 0:
+            raise ValueError(f"模型 {llm_name} ({llm_factory}) 已存在")
+        
+        # 获取系统租户 ID (使用 admin 用户的 ID)
+        tenant_sql = "SELECT id FROM user WHERE email = 'admin@admin.com' OR nickname = 'admin' LIMIT 1"
+        cursor.execute(tenant_sql)
+        tenant_row = cursor.fetchone()
+        if tenant_row:
+            tenant_id = tenant_row[0]
+        else:
+            tenant_id = str(uuid.uuid4()).replace('-', '')
+        
+        # 插入模型
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        enabled_value = 1 if global_enabled else 0
+        
+        insert_sql = """
+            INSERT INTO tenant_llm 
+            (create_time, create_date, update_time, update_date, tenant_id, llm_factory, model_type, llm_name, api_key, api_base, max_tokens, used_tokens, global_enabled)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_sql, (
+            now, now, now, now,
+            tenant_id, llm_factory, model_type, llm_name, api_key, api_base,
+            8192, 0, enabled_value
+        ))
+        conn.commit()
+        return True
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def update_model(llm_name, llm_factory, api_base=None, api_key=None, global_enabled=None):
+    """
+    更新模型信息
+    :param llm_name: 模型名称
+    :param llm_factory: 模型厂商
+    :param api_base: API Base URL (可选)
+    :param api_key: API Key (可选)
+    :param global_enabled: 是否全局启用 (可选)
+    :return: 影响的行数
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 动态构建更新语句
+        updates = []
+        params = []
+        
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        updates.append("update_time = %s")
+        params.append(now)
+        updates.append("update_date = %s")
+        params.append(now)
+        
+        if api_base is not None:
+            updates.append("api_base = %s")
+            params.append(api_base)
+        
+        if api_key is not None and api_key.strip():
+            updates.append("api_key = %s")
+            params.append(api_key)
+        
+        if global_enabled is not None:
+            updates.append("global_enabled = %s")
+            params.append(1 if global_enabled else 0)
+        
+        if not updates:
+            return 0
+        
+        params.extend([llm_name, llm_factory])
+        sql = f"""
+            UPDATE tenant_llm 
+            SET {', '.join(updates)}
+            WHERE llm_name = %s AND llm_factory = %s
+        """
+        cursor.execute(sql, params)
+        conn.commit()
+        return cursor.rowcount
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def delete_model(llm_name, llm_factory):
+    """
+    删除模型
+    :param llm_name: 模型名称
+    :param llm_factory: 模型厂商
+    :return: 影响的行数
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        sql = """
+            DELETE FROM tenant_llm 
+            WHERE llm_name = %s AND llm_factory = %s
+        """
+        cursor.execute(sql, (llm_name, llm_factory))
+        conn.commit()
+        return cursor.rowcount
+    finally:
+        cursor.close()
+        conn.close()
+

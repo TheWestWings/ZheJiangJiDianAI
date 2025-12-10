@@ -796,20 +796,27 @@ Related search terms:
 @manager.route("/available_models", methods=["GET"])  # type: ignore # noqa: F821
 @login_required
 def list_available_models():
-    """获取当前用户可用的模型列表"""
+    """获取前台可用的模型列表（仅返回后台全局启用的模型）"""
     try:
-        from api.db.services.llm_service import TenantLLMService
+        from api.db.db_models import TenantLLM
         
-        # 获取当前用户配置的模型
-        models = TenantLLMService.query(tenant_id=current_user.id, model_type="chat")
+        # 获取所有全局启用的模型（global_enabled=1）
+        models = TenantLLM.select().where(
+            TenantLLM.model_type == "chat",
+            TenantLLM.global_enabled == 1
+        ).distinct()
         
         result = []
+        seen = set()  # 去重
         for model in models:
-            result.append({
-                "llm_name": model.llm_name,
-                "llm_factory": model.llm_factory,
-                "model_type": model.model_type,
-            })
+            key = (model.llm_name, model.llm_factory)
+            if key not in seen:
+                seen.add(key)
+                result.append({
+                    "llm_name": model.llm_name,
+                    "llm_factory": model.llm_factory,
+                    "model_type": model.model_type,
+                })
         
         return get_json_result(data=result)
     except Exception as e:

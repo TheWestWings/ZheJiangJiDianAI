@@ -13,7 +13,13 @@ from services.dialog.service import (
     get_default_dialog,
     get_tenant_list,
     get_knowledgebase_list,
-    get_llm_list
+    get_llm_list,
+    get_all_models_with_status,
+    set_model_global_enabled,
+    get_globally_enabled_models,
+    create_model,
+    update_model,
+    delete_model
 )
 
 
@@ -133,5 +139,157 @@ def list_llms():
     try:
         llms = get_llm_list()
         return jsonify({'code': 0, 'data': llms, 'message': 'success'})
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+@dialog_bp.route('/models', methods=['GET'])
+def list_models_with_status():
+    """获取所有模型及其启用状态（用于后台管理）"""
+    try:
+        models = get_all_models_with_status()
+        return jsonify({'code': 0, 'data': models, 'message': 'success'})
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+@dialog_bp.route('/model/enable', methods=['POST'])
+def enable_model():
+    """启用模型（全局）"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'code': 400, 'message': '请求数据不能为空'}), 400
+        
+        llm_name = data.get('llm_name')
+        llm_factory = data.get('llm_factory')
+        
+        if not llm_name or not llm_factory:
+            return jsonify({'code': 400, 'message': '缺少必要参数'}), 400
+        
+        affected_rows = set_model_global_enabled(llm_name, llm_factory, True)
+        return jsonify({
+            'code': 0, 
+            'data': {'affected_rows': affected_rows}, 
+            'message': '模型已启用'
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+@dialog_bp.route('/model/disable', methods=['POST'])
+def disable_model():
+    """禁用模型（全局）"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'code': 400, 'message': '请求数据不能为空'}), 400
+        
+        llm_name = data.get('llm_name')
+        llm_factory = data.get('llm_factory')
+        
+        if not llm_name or not llm_factory:
+            return jsonify({'code': 400, 'message': '缺少必要参数'}), 400
+        
+        affected_rows = set_model_global_enabled(llm_name, llm_factory, False)
+        return jsonify({
+            'code': 0, 
+            'data': {'affected_rows': affected_rows}, 
+            'message': '模型已禁用'
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+@dialog_bp.route('/models/enabled', methods=['GET'])
+def list_enabled_models():
+    """获取所有已启用的模型（用于前台）"""
+    try:
+        models = get_globally_enabled_models()
+        return jsonify({'code': 0, 'data': models, 'message': 'success'})
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+@dialog_bp.route('/model/create', methods=['POST'])
+def create_model_route():
+    """创建新模型"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'code': 400, 'message': '请求数据不能为空'}), 400
+        
+        llm_name = data.get('llm_name')
+        llm_factory = data.get('llm_factory')
+        model_type = data.get('model_type', 'chat')
+        api_base = data.get('api_base')
+        api_key = data.get('api_key')
+        global_enabled = data.get('global_enabled', True)
+        
+        if not llm_name or not llm_factory or not api_base or not api_key:
+            return jsonify({'code': 400, 'message': '缺少必要参数'}), 400
+        
+        create_model(llm_name, llm_factory, model_type, api_base, api_key, global_enabled)
+        return jsonify({
+            'code': 0, 
+            'message': '模型创建成功'
+        })
+    except ValueError as e:
+        return jsonify({'code': 400, 'message': str(e)}), 400
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+@dialog_bp.route('/model/update', methods=['POST'])
+def update_model_route():
+    """更新模型信息"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'code': 400, 'message': '请求数据不能为空'}), 400
+        
+        llm_name = data.get('llm_name')
+        llm_factory = data.get('llm_factory')
+        
+        if not llm_name or not llm_factory:
+            return jsonify({'code': 400, 'message': '缺少必要参数'}), 400
+        
+        api_base = data.get('api_base')
+        api_key = data.get('api_key')
+        global_enabled = data.get('global_enabled')
+        
+        affected_rows = update_model(llm_name, llm_factory, api_base, api_key, global_enabled)
+        return jsonify({
+            'code': 0, 
+            'data': {'affected_rows': affected_rows}, 
+            'message': '模型更新成功'
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+@dialog_bp.route('/model/delete', methods=['POST'])
+def delete_model_route():
+    """删除模型"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'code': 400, 'message': '请求数据不能为空'}), 400
+        
+        llm_name = data.get('llm_name')
+        llm_factory = data.get('llm_factory')
+        
+        if not llm_name or not llm_factory:
+            return jsonify({'code': 400, 'message': '缺少必要参数'}), 400
+        
+        affected_rows = delete_model(llm_name, llm_factory)
+        if affected_rows == 0:
+            return jsonify({'code': 404, 'message': '模型不存在'}), 404
+        
+        return jsonify({
+            'code': 0, 
+            'data': {'affected_rows': affected_rows}, 
+            'message': '模型删除成功'
+        })
     except Exception as e:
         return jsonify({'code': 500, 'message': str(e)}), 500

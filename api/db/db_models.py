@@ -652,6 +652,7 @@ class TenantLLM(DataBaseModel):
     api_base = CharField(max_length=255, null=True, help_text="API Base")
     max_tokens = IntegerField(default=8192, index=True)
     used_tokens = IntegerField(default=0, index=True)
+    global_enabled = IntegerField(default=0, help_text="是否全局启用 (0:否, 1:是)", index=True)
 
     def __str__(self):
         return self.llm_name

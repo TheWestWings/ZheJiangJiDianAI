@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Star, Delete, Plus, Refresh, Setting } from "@element-plus/icons-vue"
+import { Refresh, Plus, Edit, Delete } from "@element-plus/icons-vue"
 import axios from "axios"
 
 defineOptions({
@@ -8,58 +8,64 @@ defineOptions({
 
 // 模型数据类型
 interface ModelData {
-  id: string
   llm_name: string
   llm_factory: string
   model_type: string
-  api_key: string
   api_base: string
-  enabled: boolean
-  create_time: string
-  update_time: string
-  is_default?: boolean
+  api_key?: string
+  global_enabled: boolean
 }
 
 // 状态
 const loading = ref(false)
 const modelList = ref<ModelData[]>([])
-const defaultModelId = ref<string | null>(null)
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const searchName = ref("")
 
-// 配置对话框状态
-const configDialogVisible = ref(false)
-const configDialogTitle = ref("配置模型")
-const isEdit = ref(false)
-const saving = ref(false)
-
-// 当前编辑的模型数据
-const currentModel = ref<Partial<ModelData>>({
+// 编辑对话框状态
+const editDialogVisible = ref(false)
+const editDialogTitle = ref("新增模型")
+const isEditing = ref(false)
+const editForm = ref<Partial<ModelData>>({
   llm_name: "",
-  llm_factory: "",
+  llm_factory: "OpenAI-API-Compatible",
   model_type: "chat",
-  api_key: "",
   api_base: "",
-  enabled: true
+  api_key: "",
+  global_enabled: true
 })
 
+// 表单规则
+const editFormRules = {
+  llm_name: [{ required: true, message: "请输入模型名称", trigger: "blur" }],
+  llm_factory: [{ required: true, message: "请选择模型厂商", trigger: "change" }],
+  api_base: [{ required: true, message: "请输入 API Base URL", trigger: "blur" }],
+  api_key: [{ required: true, message: "请输入 API Key", trigger: "blur" }]
+}
+
+const editFormRef = ref()
+
 /**
- * 获取模型列表
+ * 获取模型列表（含启用状态）
  */
 async function getModelList() {
   loading.value = true
   try {
-    const response = await axios.get("/api/v1/dialog/llms")
+    const response = await axios.get("/api/v1/dialog/models")
     if (response.data.code === 0) {
-      modelList.value = response.data.data || []
-      total.value = modelList.value.length
+      let models = response.data.data || []
       
-      // 标记默认模型
-      modelList.value.forEach((item) => {
-        item.is_default = item.llm_name === defaultModelId.value
-      })
+      // 搜索过滤
+      if (searchName.value) {
+        models = models.filter((m: ModelData) => 
+          m.llm_name.toLowerCase().includes(searchName.value.toLowerCase())
+        )
+      }
+      
+      modelList.value = models
+      total.value = models.length
     }
   } catch (error) {
     console.error("获取模型列表失败:", error)
@@ -70,16 +76,32 @@ async function getModelList() {
 }
 
 /**
- * 获取默认模型ID
+ * 切换模型启用状态
+ * 注意：el-switch 的 @change 事件在值改变后触发，所以 row.global_enabled 已经是新值
  */
-async function getDefaultModel() {
+async function handleToggleEnabled(row: ModelData) {
   try {
-    const response = await axios.get("/api/v1/model/default")
+    // row.global_enabled 此时已经是切换后的值
+    // 如果是 true，说明用户想要启用，调用 enable 接口
+    // 如果是 false，说明用户想要禁用，调用 disable 接口
+    const endpoint = row.global_enabled ? "/api/v1/dialog/model/enable" : "/api/v1/dialog/model/disable"
+    const response = await axios.post(endpoint, {
+      llm_name: row.llm_name,
+      llm_factory: row.llm_factory
+    })
+    
     if (response.data.code === 0) {
-      defaultModelId.value = response.data.data.model_id
+      ElMessage.success(row.global_enabled ? "模型已启用" : "模型已禁用")
+    } else {
+      // 操作失败，恢复原值
+      row.global_enabled = !row.global_enabled
+      ElMessage.error(response.data.message || "操作失败")
     }
   } catch (error) {
-    console.error("获取默认模型失败:", error)
+    // 操作失败，恢复原值
+    row.global_enabled = !row.global_enabled
+    console.error("切换模型状态失败:", error)
+    ElMessage.error("操作失败")
   }
 }
 
@@ -109,43 +131,105 @@ function handlePageChange(page: number) {
 }
 
 /**
- * 显示配置对话框
+ * 显示新增模型对话框
  */
-function showConfigDialog(row: ModelData) {
-  configDialogTitle.value = "模型详情"
-  isEdit.value = true
-  currentModel.value = {
-    ...row
+function showAddDialog() {
+  editDialogTitle.value = "新增模型"
+  isEditing.value = false
+  editForm.value = {
+    llm_name: "",
+    llm_factory: "OpenAI-API-Compatible",
+    model_type: "chat",
+    api_base: "",
+    api_key: "",
+    global_enabled: true
   }
-  configDialogVisible.value = true
+  editDialogVisible.value = true
 }
 
 /**
- * 设置默认模型
+ * 显示编辑模型对话框
  */
-async function handleSetDefault(row: ModelData) {
+function showEditDialog(row: ModelData) {
+  editDialogTitle.value = "编辑模型"
+  isEditing.value = true
+  editForm.value = { 
+    ...row,
+    api_key: "" // 不显示已有的 API Key
+  }
+  editDialogVisible.value = true
+}
+
+/**
+ * 提交新增/编辑表单
+ */
+async function handleSubmitEdit() {
+  if (!editFormRef.value) return
+  
   try {
-    await axios.post(`/api/v1/model/${row.llm_name}/set-default`)
-    defaultModelId.value = row.llm_name
-    ElMessage.success("设置成功")
-    getModelList()
-  } catch (error) {
-    console.error("设置默认模型失败:", error)
-    ElMessage.error("设置失败")
+    await editFormRef.value.validate()
+    
+    if (isEditing.value) {
+      // 编辑模型
+      const response = await axios.post("/api/v1/dialog/model/update", editForm.value)
+      if (response.data.code === 0) {
+        ElMessage.success("模型更新成功")
+        editDialogVisible.value = false
+        getModelList()
+      } else {
+        ElMessage.error(response.data.message || "更新失败")
+      }
+    } else {
+      // 新增模型
+      const response = await axios.post("/api/v1/dialog/model/create", editForm.value)
+      if (response.data.code === 0) {
+        ElMessage.success("模型添加成功")
+        editDialogVisible.value = false
+        getModelList()
+      } else {
+        ElMessage.error(response.data.message || "添加失败")
+      }
+    }
+  } catch (validationError) {
+    console.log("表单验证失败")
   }
 }
 
 /**
- * 格式化时间
+ * 删除模型
  */
-function formatTime(time: string) {
-  if (!time) return ""
-  return new Date(time).toLocaleString()
+function handleDelete(row: ModelData) {
+  ElMessageBox.confirm(
+    `确定要删除模型 "${row.llm_name}" 吗？此操作不可恢复。`,
+    "删除确认",
+    {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    }
+  ).then(async () => {
+    try {
+      const response = await axios.post("/api/v1/dialog/model/delete", {
+        llm_name: row.llm_name,
+        llm_factory: row.llm_factory
+      })
+      if (response.data.code === 0) {
+        ElMessage.success("模型删除成功")
+        getModelList()
+      } else {
+        ElMessage.error(response.data.message || "删除失败")
+      }
+    } catch (error) {
+      console.error("删除模型失败:", error)
+      ElMessage.error("删除失败")
+    }
+  }).catch(() => {
+    // 用户取消
+  })
 }
 
 // 初始化
 onMounted(async () => {
-  await getDefaultModel()
   await getModelList()
 })
 </script>
@@ -158,17 +242,20 @@ onMounted(async () => {
         <el-col :span="6">
           <el-input v-model="searchName" placeholder="请输入模型名称" clearable @keyup.enter="handleSearch" />
         </el-col>
-        <el-col :span="6">
+        <el-col :span="12">
           <el-button type="primary" @click="handleSearch">
             搜索
           </el-button>
           <el-button :icon="Refresh" @click="handleRefresh">
             重置
           </el-button>
+          <el-button type="success" :icon="Plus" @click="showAddDialog">
+            新增模型
+          </el-button>
         </el-col>
-        <el-col :span="12" style="text-align: right">
+        <el-col :span="6" style="text-align: right">
           <el-text type="info">
-            可用模型列表（模型需在系统设置中配置API Key）
+            启用的模型将对所有前台用户可见
           </el-text>
         </el-col>
       </el-row>
@@ -177,19 +264,16 @@ onMounted(async () => {
     <!-- 表格 -->
     <el-card shadow="hover" class="table-wrapper">
       <el-table v-loading="loading" :data="modelList" border stripe>
-        <el-table-column label="默认" width="70" align="center">
+        <el-table-column label="启用" width="80" align="center">
           <template #default="{ row }">
-            <el-icon v-if="row.is_default" color="#f7ba2a" :size="20">
-              <Star />
-            </el-icon>
+            <el-switch
+              v-model="row.global_enabled"
+              @change="handleToggleEnabled(row)"
+            />
           </template>
         </el-table-column>
         <el-table-column prop="llm_name" label="模型名称" min-width="200" />
-        <el-table-column prop="llm_factory" label="模型厂商" min-width="150">
-          <template #default="{ row }">
-            {{ row.fid || row.llm_factory || '-' }}
-          </template>
-        </el-table-column>
+        <el-table-column prop="llm_factory" label="模型厂商" min-width="150" />
         <el-table-column prop="model_type" label="模型类型" width="120" align="center">
           <template #default="{ row }">
             <el-tag :type="row.model_type === 'chat' ? 'success' : 'info'">
@@ -197,20 +281,21 @@ onMounted(async () => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="api_base" label="API Base" min-width="200">
           <template #default="{ row }">
-            <el-button
-              v-if="!row.is_default"
-              type="warning"
-              size="small"
-              :icon="Star"
-              @click="handleSetDefault(row)"
-            >
-              设为默认
-            </el-button>
-            <el-button type="primary" size="small" :icon="Setting" @click="showConfigDialog(row)">
-              详情
-            </el-button>
+            {{ row.api_base || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120" fixed="right" align="center">
+          <template #default="{ row }">
+            <div style="display: flex; gap: 8px; justify-content: center;">
+              <el-button type="primary" link size="small" :icon="Edit" @click="showEditDialog(row)">
+                编辑
+              </el-button>
+              <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -228,30 +313,56 @@ onMounted(async () => {
       />
     </el-card>
 
-    <!-- 详情对话框 -->
+    <!-- 新增/编辑对话框 -->
     <el-dialog
-      v-model="configDialogVisible"
-      :title="configDialogTitle"
-      width="500px"
+      v-model="editDialogVisible"
+      :title="editDialogTitle"
+      width="550px"
       destroy-on-close
     >
-      <el-form :model="currentModel" label-width="100px">
-        <el-form-item label="模型名称">
-          <el-input v-model="currentModel.llm_name" disabled />
+      <el-form ref="editFormRef" :model="editForm" :rules="editFormRules" label-width="100px">
+        <el-form-item label="模型名称" prop="llm_name">
+          <el-input 
+            v-model="editForm.llm_name" 
+            placeholder="例如: qwen-max, gpt-4o"
+            :disabled="isEditing"
+          />
         </el-form-item>
-        <el-form-item label="模型厂商">
-          <el-input :value="currentModel.fid || currentModel.llm_factory" disabled />
+        <el-form-item label="模型厂商" prop="llm_factory">
+          <el-select v-model="editForm.llm_factory" placeholder="请选择" :disabled="isEditing" style="width: 100%">
+            <el-option label="OpenAI-API-Compatible" value="OpenAI-API-Compatible" />
+            <el-option label="Tongyi-Qianwen" value="Tongyi-Qianwen" />
+            <el-option label="Zhipu-AI" value="Zhipu-AI" />
+            <el-option label="DeepSeek" value="DeepSeek" />
+            <el-option label="Moonshot" value="Moonshot" />
+            <el-option label="VolcEngine" value="VolcEngine" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="模型类型">
-          <el-tag :type="currentModel.model_type === 'chat' ? 'success' : 'info'">
-            {{ currentModel.model_type === 'chat' ? '对话模型' : currentModel.model_type }}
-          </el-tag>
+        <el-form-item label="API Base" prop="api_base">
+          <el-input v-model="editForm.api_base" placeholder="例如: https://api.openai.com/v1" />
+        </el-form-item>
+        <el-form-item label="API Key" prop="api_key">
+          <el-input 
+            v-model="editForm.api_key" 
+            type="password" 
+            show-password 
+            :placeholder="isEditing ? '留空则不修改' : '请输入 API Key'"
+          />
+        </el-form-item>
+        <el-form-item label="全局启用">
+          <el-switch v-model="editForm.global_enabled" />
+          <span style="margin-left: 10px; color: #909399; font-size: 12px">
+            启用后前台用户可选择此模型
+          </span>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="configDialogVisible = false">
-          关闭
+        <el-button @click="editDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="handleSubmitEdit">
+          确定
         </el-button>
       </template>
     </el-dialog>
@@ -272,11 +383,5 @@ onMounted(async () => {
 .pagination {
   margin-top: 20px;
   justify-content: center;
-}
-
-.tip-text {
-  color: #909399;
-  font-size: 12px;
-  margin-left: 10px;
 }
 </style>
