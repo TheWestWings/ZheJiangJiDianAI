@@ -2,12 +2,19 @@ import { PromptIcon } from '@/assets/icon/Icon';
 import CopyToClipboard from '@/components/copy-to-clipboard';
 import { useSetModalState } from '@/hooks/common-hooks';
 import { IRemoveMessageById } from '@/hooks/logic-hooks';
-import { DeleteOutlined, SyncOutlined } from '@ant-design/icons';
+import {
+  DatabaseOutlined,
+  DeleteOutlined,
+  SyncOutlined,
+} from '@ant-design/icons';
 import { Radio, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import FeedbackModal from './feedback-modal';
 import { useRemoveMessage, useSendFeedback, useSpeech } from './hooks';
 import PromptModal from './prompt-modal';
+
+import { IReference } from '@/interfaces/database/chat';
+import ReferenceModal from './reference-modal';
 
 interface IProps {
   messageId: string;
@@ -16,6 +23,7 @@ interface IProps {
   showLikeButton: boolean;
   audioBinary?: string;
   showLoudspeaker?: boolean;
+  reference?: IReference;
 }
 
 export const AssistantGroupButton = ({
@@ -23,6 +31,7 @@ export const AssistantGroupButton = ({
   content,
   prompt,
   audioBinary,
+  reference,
 }: IProps) => {
   const { visible, hideModal, onFeedbackOk, loading } =
     useSendFeedback(messageId);
@@ -31,8 +40,16 @@ export const AssistantGroupButton = ({
     hideModal: hidePromptModal,
     showModal: showPromptModal,
   } = useSetModalState();
+  const {
+    visible: referenceVisible,
+    hideModal: hideReferenceModal,
+    showModal: showReferenceModal,
+  } = useSetModalState();
+
   useTranslation();
   useSpeech(content, audioBinary);
+
+  const hasReference = reference?.chunks && reference.chunks.length > 0;
 
   return (
     <>
@@ -43,6 +60,13 @@ export const AssistantGroupButton = ({
         {prompt && (
           <Radio.Button value="e" onClick={showPromptModal}>
             <PromptIcon style={{ fontSize: '16px' }} />
+          </Radio.Button>
+        )}
+        {hasReference && (
+          <Radio.Button value="r" onClick={showReferenceModal}>
+            <Tooltip title="知识库详细信息">
+              <DatabaseOutlined />
+            </Tooltip>
           </Radio.Button>
         )}
       </Radio.Group>
@@ -60,6 +84,13 @@ export const AssistantGroupButton = ({
           hideModal={hidePromptModal}
           prompt={prompt}
         ></PromptModal>
+      )}
+      {referenceVisible && (
+        <ReferenceModal
+          visible={referenceVisible}
+          hideModal={hideReferenceModal}
+          reference={reference}
+        ></ReferenceModal>
       )}
     </>
   );

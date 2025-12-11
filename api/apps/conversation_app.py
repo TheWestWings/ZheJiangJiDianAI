@@ -217,6 +217,7 @@ def get():
                     "document_name": get_value(ck, "docnm_kwd", "document_name"),
                     "dataset_id": get_value(ck, "kb_id", "dataset_id"),
                     "image_id": get_value(ck, "image_id", "img_id"),
+                    "similarity": get_value(ck, "similarity", "similarity"),
                     "positions": get_value(ck, "positions", "position_int"),
                 }
                 for ck in ref.get("chunks", [])
@@ -371,6 +372,7 @@ def completion():
                         "document_name": get_value(ck, "docnm_kwd", "document_name"),
                         "dataset_id": get_value(ck, "kb_id", "dataset_id"),
                         "image_id": get_value(ck, "image_id", "img_id"),
+                        "similarity": get_value(ck, "similarity", "similarity"),
                         "positions": get_value(ck, "positions", "position_int"),
                     }
                     for ck in ref.get("chunks", [])

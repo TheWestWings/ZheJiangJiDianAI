@@ -127,6 +127,7 @@ const MessageItem = ({
                     showLikeButton={showLikeButton}
                     audioBinary={item.audio_binary}
                     showLoudspeaker={showLoudspeaker}
+                    reference={reference}
                   ></AssistantGroupButton>
                 )
               ) : (
