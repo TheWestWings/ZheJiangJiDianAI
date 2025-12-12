@@ -4,7 +4,7 @@ import type { FormInstance, FormRules } from "element-plus"
 import { createTableDataApi, deleteTableDataApi, getTableDataApi, resetPasswordApi, updateTableDataApi } from "@@/apis/tables"
 import { getAllRolesApi, getUserRolesApi, setUserRolesApi, type RoleData } from "@@/apis/roles"
 import { usePagination } from "@@/composables/usePagination"
-import { CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search, UserFilled } from "@element-plus/icons-vue"
+import { CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search, UserFilled, Upload, Download } from "@element-plus/icons-vue"
 import { cloneDeep } from "lodash-es"
 
 defineOptions({
@@ -101,6 +101,66 @@ function submitSetRoles() {
 function roleDialogClosed() {
   currentRoleUserId.value = undefined
   selectedRoleIds.value = []
+}
+// #endregion
+
+// #region 批量导入
+const batchImportDialogVisible = ref<boolean>(false)
+const batchImportLoading = ref<boolean>(false)
+const uploadRef = ref<any>(null)
+const batchImportResult = ref<{
+  success_count: number
+  failed_count: number
+  failed_users: { row: number; email: string; reason: string }[]
+} | null>(null)
+
+function handleBatchImport() {
+  batchImportDialogVisible.value = true
+  batchImportResult.value = null
+}
+
+function downloadTemplate() {
+  const link = document.createElement('a')
+  link.href = '/api/v1/users/template'
+  link.download = 'user_import_template.xlsx'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+function handleUploadSuccess(response: any, file: any, fileList: any) {
+  batchImportLoading.value = false
+  if (response.code === 0) {
+    batchImportResult.value = response.data
+    ElMessage.success(response.message)
+    getTableData()
+  } else {
+    ElMessage.error(response.message || '批量导入失败')
+  }
+  // 清空上传文件列表
+  uploadRef.value?.clearFiles()
+}
+
+function handleUploadError(error: any) {
+  batchImportLoading.value = false
+  ElMessage.error('文件上传失败')
+  console.error('Upload error:', error)
+}
+
+function beforeUpload(file: File) {
+  const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+  if (!isExcel) {
+    ElMessage.error('请上传 Excel 文件（.xlsx 或 .xls）')
+    return false
+  }
+  batchImportLoading.value = true
+  batchImportResult.value = null
+  return true
+}
+
+function batchImportDialogClosed() {
+  batchImportResult.value = null
+  uploadRef.value?.clearFiles()
 }
 // #endregion
 function handleCreateOrUpdate() {
@@ -329,6 +389,9 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
           <el-button type="primary" :icon="CirclePlus" @click="dialogVisible = true">
             新增用户
           </el-button>
+          <el-button type="success" :icon="Upload" @click="handleBatchImport">
+            批量新增
+          </el-button>
           <el-button type="danger" :icon="Delete" @click="handleBatchDelete">
             批量删除
           </el-button>
@@ -455,6 +518,72 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
         </el-button>
         <el-button type="primary" :loading="roleLoading" @click="submitSetRoles">
           确认
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量导入对话框 -->
+    <el-dialog
+      v-model="batchImportDialogVisible"
+      title="批量新增用户"
+      width="500px"
+      @closed="batchImportDialogClosed"
+    >
+      <div v-loading="batchImportLoading">
+        <el-alert
+          title="请按照模板格式填写用户信息，包含 username、email、password 三列"
+          type="info"
+          :closable="false"
+          style="margin-bottom: 20px;"
+        />
+        
+        <div style="margin-bottom: 20px;">
+          <el-button type="primary" :icon="Download" @click="downloadTemplate">
+            下载模板
+          </el-button>
+        </div>
+        
+        <el-upload
+          ref="uploadRef"
+          action="/api/v1/users/batch"
+          :limit="1"
+          :on-success="handleUploadSuccess"
+          :on-error="handleUploadError"
+          :before-upload="beforeUpload"
+          accept=".xlsx,.xls"
+          drag
+        >
+          <el-icon class="el-icon--upload"><Upload /></el-icon>
+          <div class="el-upload__text">
+            将 Excel 文件拖到此处，或 <em>点击上传</em>
+          </div>
+          <template #tip>
+            <div class="el-upload__tip">
+              仅支持 .xlsx 和 .xls 格式的 Excel 文件
+            </div>
+          </template>
+        </el-upload>
+        
+        <!-- 导入结果 -->
+        <div v-if="batchImportResult" style="margin-top: 20px;">
+          <el-alert
+            :title="`成功创建 ${batchImportResult.success_count} 个用户`"
+            :type="batchImportResult.failed_count > 0 ? 'warning' : 'success'"
+            :closable="false"
+          />
+          <div v-if="batchImportResult.failed_count > 0" style="margin-top: 10px;">
+            <el-text type="danger">以下用户创建失败：</el-text>
+            <el-table :data="batchImportResult.failed_users" size="small" style="margin-top: 8px;">
+              <el-table-column prop="row" label="行号" width="60" />
+              <el-table-column prop="email" label="邮箱" />
+              <el-table-column prop="reason" label="原因" />
+            </el-table>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="batchImportDialogVisible = false">
+          关闭
         </el-button>
       </template>
     </el-dialog>

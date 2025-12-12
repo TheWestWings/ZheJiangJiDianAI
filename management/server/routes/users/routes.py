@@ -165,3 +165,127 @@ def set_user_roles_route(user_id):
             "code": 500,
             "message": f"设置用户角色失败: {str(e)}"
         }), 500
+
+
+@users_bp.route('/batch', methods=['POST'])
+def batch_create_users_route():
+    """批量创建用户（通过Excel上传）"""
+    try:
+        import pandas as pd
+        from io import BytesIO
+        from services.users.service import create_user
+        
+        if 'file' not in request.files:
+            return jsonify({"code": 400, "message": "未检测到文件"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"code": 400, "message": "未选择文件"}), 400
+        
+        # 检查文件类型
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            return jsonify({"code": 400, "message": "请上传Excel文件（.xlsx或.xls）"}), 400
+        
+        # 读取Excel文件
+        try:
+            df = pd.read_excel(BytesIO(file.read()))
+        except Exception as e:
+            return jsonify({"code": 400, "message": f"Excel文件读取失败: {str(e)}"}), 400
+        
+        # 检查必要列是否存在
+        required_columns = ['username', 'email', 'password']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({
+                "code": 400, 
+                "message": f"Excel缺少必要列: {', '.join(missing_columns)}"
+            }), 400
+        
+        # 批量创建用户
+        success_count = 0
+        failed_users = []
+        
+        for index, row in df.iterrows():
+            try:
+                username = str(row['username']).strip()
+                email = str(row['email']).strip()
+                password = str(row['password']).strip()
+                
+                # 跳过空行
+                if not username or not email or not password or username == 'nan':
+                    continue
+                
+                user_data = {
+                    "username": username,
+                    "email": email,
+                    "password": password
+                }
+                
+                result = create_user(user_data)
+                if result:
+                    success_count += 1
+                else:
+                    failed_users.append({"row": index + 2, "email": email, "reason": "创建失败"})
+            except Exception as e:
+                failed_users.append({
+                    "row": index + 2, 
+                    "email": str(row.get('email', 'unknown')), 
+                    "reason": str(e)
+                })
+        
+        message = f"成功创建 {success_count} 个用户"
+        if failed_users:
+            message += f"，{len(failed_users)} 个用户创建失败"
+        
+        return jsonify({
+            "code": 0,
+            "data": {
+                "success_count": success_count,
+                "failed_count": len(failed_users),
+                "failed_users": failed_users
+            },
+            "message": message
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": f"批量创建用户失败: {str(e)}"
+        }), 500
+
+
+@users_bp.route('/template', methods=['GET'])
+def download_user_template():
+    """下载用户导入模板"""
+    try:
+        import pandas as pd
+        from io import BytesIO
+        from flask import send_file
+        
+        # 创建模板数据（只包含表头，不包含示例数据）
+        template_data = {
+            'username': [],
+            'email': [],
+            'password': []
+        }
+        
+        df = pd.DataFrame(template_data)
+        
+        # 导出到内存中的Excel文件
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='用户数据')
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='user_import_template.xlsx'
+        )
+        
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": f"生成模板失败: {str(e)}"
+        }), 500
