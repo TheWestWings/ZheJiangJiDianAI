@@ -121,3 +121,47 @@ def reset_password_route(user_id):
             "code": 500,
             "message": f"重置密码失败: {str(e)}"
         }), 500
+
+
+@users_bp.route('/<string:user_id>/roles', methods=['GET'])
+def get_user_roles_route(user_id):
+    """获取用户的角色"""
+    try:
+        from services.roles.service import get_user_roles
+        roles = get_user_roles(user_id)
+        return jsonify({
+            "code": 0,
+            "data": roles,
+            "message": "获取用户角色成功"
+        })
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": f"获取用户角色失败: {str(e)}"
+        }), 500
+
+
+@users_bp.route('/<string:user_id>/roles', methods=['PUT'])
+def set_user_roles_route(user_id):
+    """设置用户的角色"""
+    try:
+        from services.roles.service import set_user_roles
+        data = request.json
+        role_ids = data.get('role_ids', [])
+        
+        success = set_user_roles(user_id, role_ids)
+        if success:
+            return jsonify({
+                "code": 0,
+                "message": "设置用户角色成功"
+            })
+        else:
+            return jsonify({
+                "code": 400,
+                "message": "设置用户角色失败"
+            }), 400
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": f"设置用户角色失败: {str(e)}"
+        }), 500

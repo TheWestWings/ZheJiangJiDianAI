@@ -2,8 +2,9 @@
 import type { CreateOrUpdateTableRequestData, TableData } from "@@/apis/tables/type"
 import type { FormInstance, FormRules } from "element-plus"
 import { createTableDataApi, deleteTableDataApi, getTableDataApi, resetPasswordApi, updateTableDataApi } from "@@/apis/tables"
+import { getAllRolesApi, getUserRolesApi, setUserRolesApi, type RoleData } from "@@/apis/roles"
 import { usePagination } from "@@/composables/usePagination"
-import { CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search } from "@element-plus/icons-vue"
+import { CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search, UserFilled } from "@element-plus/icons-vue"
 import { cloneDeep } from "lodash-es"
 
 defineOptions({
@@ -47,6 +48,59 @@ const resetPasswordFormRules: FormRules = {
   password: [
     { required: true, message: "请输入新密码", trigger: "blur" }
   ]
+}
+// #endregion
+
+// #region 设置角色
+const roleDialogVisible = ref<boolean>(false)
+const roleLoading = ref<boolean>(false)
+const currentRoleUserId = ref<string | undefined>(undefined)
+const allRoles = ref<RoleData[]>([])
+const selectedRoleIds = ref<string[]>([])
+
+function handleSetRoles(row: TableData) {
+  currentRoleUserId.value = row.id
+  roleDialogVisible.value = true
+  roleLoading.value = true
+  
+  // 并行获取所有角色和用户当前角色
+  Promise.all([
+    getAllRolesApi(),
+    getUserRolesApi(row.id)
+  ]).then(([allRolesRes, userRolesRes]) => {
+    allRoles.value = allRolesRes.data || []
+    selectedRoleIds.value = (userRolesRes.data || []).map((r: RoleData) => r.id!)
+  }).catch((error: any) => {
+    console.error("获取角色信息失败:", error)
+    ElMessage.error("获取角色信息失败")
+  }).finally(() => {
+    roleLoading.value = false
+  })
+}
+
+function submitSetRoles() {
+  if (currentRoleUserId.value === undefined) {
+    ElMessage.error("用户ID丢失")
+    return
+  }
+  roleLoading.value = true
+  setUserRolesApi(currentRoleUserId.value, selectedRoleIds.value)
+    .then(() => {
+      ElMessage.success("角色设置成功")
+      roleDialogVisible.value = false
+    })
+    .catch((error: any) => {
+      console.error("设置角色失败:", error)
+      ElMessage.error("设置角色失败")
+    })
+    .finally(() => {
+      roleLoading.value = false
+    })
+}
+
+function roleDialogClosed() {
+  currentRoleUserId.value = undefined
+  selectedRoleIds.value = []
 }
 // #endregion
 function handleCreateOrUpdate() {
@@ -292,10 +346,13 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
           <el-table-column prop="email" label="邮箱" align="center" sortable="custom" />
           <el-table-column prop="createTime" label="创建时间" align="center" sortable="custom" />
           <el-table-column prop="updateTime" label="更新时间" align="center" sortable="custom" />
-          <el-table-column fixed="right" label="操作" width="300" align="center">
+          <el-table-column fixed="right" label="操作" width="380" align="center">
             <template #default="scope">
               <el-button type="primary" text bg size="small" :icon="Edit" @click="handleUpdate(scope.row)">
                 修改用户名
+              </el-button>
+              <el-button type="success" text bg size="small" :icon="UserFilled" @click="handleSetRoles(scope.row)">
+                设置角色
               </el-button>
               <el-button type="warning" text bg size="small" :icon="Key" @click="handleResetPassword(scope.row)">
                 重置密码
@@ -366,6 +423,38 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
         </el-button>
         <el-button type="primary" :loading="loading" @click="submitResetPassword">
           确认重置
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 设置角色对话框 -->
+    <el-dialog
+      v-model="roleDialogVisible"
+      title="设置用户角色"
+      width="500px"
+      @closed="roleDialogClosed"
+    >
+      <div v-loading="roleLoading">
+        <el-checkbox-group v-model="selectedRoleIds">
+          <el-checkbox
+            v-for="role in allRoles"
+            :key="role.id"
+            :value="role.id"
+            :label="role.id"
+            style="display: block; margin-bottom: 10px;"
+          >
+            {{ role.name }}
+            <el-tag v-if="role.isDefault" type="success" size="small" style="margin-left: 8px;">默认</el-tag>
+          </el-checkbox>
+        </el-checkbox-group>
+        <el-empty v-if="allRoles.length === 0 && !roleLoading" description="暂无可用角色" />
+      </div>
+      <template #footer>
+        <el-button @click="roleDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="roleLoading" @click="submitSetRoles">
+          确认
         </el-button>
       </template>
     </el-dialog>

@@ -293,3 +293,57 @@ def delete_model_route():
         })
     except Exception as e:
         return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+# ===================== 模型角色权限 =====================
+
+@dialog_bp.route('/model/<string:llm_factory>/<string:llm_name>/roles', methods=['GET'])
+def get_model_roles_route(llm_factory, llm_name):
+    """获取模型的角色权限"""
+    try:
+        from services.roles.service import get_model_roles
+        # 这里使用一个统一的 tenant_id（可以是第一个租户或者系统配置）
+        from database import DB_CONFIG
+        import mysql.connector
+        
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id FROM tenant LIMIT 1")
+        tenant = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        tenant_id = tenant['id'] if tenant else 'system'
+        roles = get_model_roles(tenant_id, llm_factory, llm_name)
+        return jsonify({'code': 0, 'data': roles, 'message': 'success'})
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+@dialog_bp.route('/model/<string:llm_factory>/<string:llm_name>/roles', methods=['PUT'])
+def set_model_roles_route(llm_factory, llm_name):
+    """设置模型的角色权限"""
+    try:
+        from services.roles.service import set_model_roles
+        from database import DB_CONFIG
+        import mysql.connector
+        
+        data = request.get_json()
+        role_ids = data.get('role_ids', [])
+        
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id FROM tenant LIMIT 1")
+        tenant = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        tenant_id = tenant['id'] if tenant else 'system'
+        success = set_model_roles(tenant_id, llm_factory, llm_name, role_ids)
+        
+        if success:
+            return jsonify({'code': 0, 'message': '设置模型角色权限成功'})
+        else:
+            return jsonify({'code': 400, 'message': '设置模型角色权限失败'}), 400
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500

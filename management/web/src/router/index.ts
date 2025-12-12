@@ -170,6 +170,24 @@ export const constantRoutes: RouteRecordRaw[] = [
                 }
             }
         ]
+    },
+    {
+        path: "/role",
+        component: Layouts,
+        redirect: "/role/index",
+        children: [
+            {
+                path: "index",
+                component: () => import("@/pages/role-management/index.vue"),
+                name: "RoleManagement",
+                meta: {
+                    title: "角色管理",
+                    elIcon: "UserFilled",
+                    affix: false,
+                    keepAlive: true
+                }
+            }
+        ]
     }
 ]
 

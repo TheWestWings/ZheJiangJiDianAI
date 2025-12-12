@@ -305,3 +305,33 @@ def get_knowledgebase_embedding_config():
         return success_response(data=result)
     except Exception as e:
         return error_response(f"获取知识库嵌入模型配置失败: {str(e)}", code=500)
+
+
+# ===================== 知识库角色权限 =====================
+
+@knowledgebase_bp.route('/<string:kb_id>/roles', methods=['GET'])
+def get_kb_roles_route(kb_id):
+    """获取知识库的角色权限"""
+    try:
+        from services.roles.service import get_kb_roles
+        roles = get_kb_roles(kb_id)
+        return success_response(data=roles)
+    except Exception as e:
+        return error_response(f"获取知识库角色权限失败: {str(e)}", code=500)
+
+
+@knowledgebase_bp.route('/<string:kb_id>/roles', methods=['PUT'])
+def set_kb_roles_route(kb_id):
+    """设置知识库的角色权限"""
+    try:
+        from services.roles.service import set_kb_roles
+        data = request.json
+        role_ids = data.get('role_ids', [])
+        
+        success = set_kb_roles(kb_id, role_ids)
+        if success:
+            return success_response(message="设置知识库角色权限成功")
+        else:
+            return error_response("设置知识库角色权限失败", code=400)
+    except Exception as e:
+        return error_response(f"设置知识库角色权限失败: {str(e)}", code=500)

@@ -408,7 +408,13 @@ class DataBaseModel(BaseModel):
 
 @DB.connection_context()
 def init_database_tables(alter_fields=[]):
+    # 导入角色模型以确保角色相关表被创建
+    from api.db import role_models
+    
     members = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+    # 添加角色模型类
+    role_members = inspect.getmembers(role_models, inspect.isclass)
+    members.extend(role_members)
     table_objs = []
     create_failed_list = []
     for name, obj in members:
