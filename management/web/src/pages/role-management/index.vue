@@ -232,12 +232,14 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
         <el-table :data="tableData" @sort-change="handleSortChange">
           <el-table-column prop="name" label="角色名称" align="center" sortable="custom" />
           <el-table-column prop="description" label="描述" align="center" show-overflow-tooltip />
-          <el-table-column label="默认角色" width="100" align="center">
+          <el-table-column label="默认角色" width="120" align="center">
             <template #default="scope">
               <el-switch
                 :model-value="scope.row.isDefault"
                 @change="handleToggleDefault(scope.row)"
-                :active-text="scope.row.isDefault ? '是' : ''"
+                active-text="是"
+                inactive-text="否"
+                inline-prompt
               />
             </template>
           </el-table-column>

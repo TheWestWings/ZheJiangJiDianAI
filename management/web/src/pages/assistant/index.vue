@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { Refresh, Plus, Edit, Delete } from "@element-plus/icons-vue"
 import axios from "axios"
+import { getAllRolesApi, type RoleData } from "@@/apis/roles"
 
 defineOptions({
   name: "ModelManagement"
@@ -228,6 +229,61 @@ function handleDelete(row: ModelData) {
   })
 }
 
+// 角色权限设置
+const roleDialogVisible = ref(false)
+const roleLoading = ref(false)
+const currentModelForRole = ref<ModelData | null>(null)
+const allRoles = ref<RoleData[]>([])
+const selectedRoleIds = ref<string[]>([])
+
+// 打开角色权限设置对话框
+async function handleSetModelRoles(row: ModelData) {
+  currentModelForRole.value = row
+  roleDialogVisible.value = true
+  roleLoading.value = true
+  
+  try {
+    // 并行获取所有角色和模型当前角色
+    const [allRolesRes, modelRolesRes] = await Promise.all([
+      getAllRolesApi(),
+      axios.get(`/api/v1/dialog/model/${encodeURIComponent(row.llm_factory)}/${encodeURIComponent(row.llm_name)}/roles`)
+    ])
+    allRoles.value = allRolesRes.data || []
+    selectedRoleIds.value = (modelRolesRes.data.data || []).map((r: any) => r.id)
+  } catch (error: any) {
+    console.error("获取角色信息失败:", error)
+    ElMessage.error("获取角色信息失败")
+  } finally {
+    roleLoading.value = false
+  }
+}
+
+// 提交角色权限设置
+async function submitModelRoles() {
+  if (!currentModelForRole.value) return
+  
+  roleLoading.value = true
+  try {
+    await axios.put(
+      `/api/v1/dialog/model/${encodeURIComponent(currentModelForRole.value.llm_factory)}/${encodeURIComponent(currentModelForRole.value.llm_name)}/roles`,
+      { role_ids: selectedRoleIds.value }
+    )
+    ElMessage.success("角色权限设置成功")
+    roleDialogVisible.value = false
+  } catch (error: any) {
+    console.error("设置角色权限失败:", error)
+    ElMessage.error("设置角色权限失败")
+  } finally {
+    roleLoading.value = false
+  }
+}
+
+// 关闭角色对话框时重置状态
+function roleDialogClosed() {
+  currentModelForRole.value = null
+  selectedRoleIds.value = []
+}
+
 // 初始化
 onMounted(async () => {
   await getModelList()
@@ -286,11 +342,14 @@ onMounted(async () => {
             {{ row.api_base || '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right" align="center">
+        <el-table-column label="操作" width="200" fixed="right" align="center">
           <template #default="{ row }">
             <div style="display: flex; gap: 8px; justify-content: center;">
               <el-button type="primary" link size="small" :icon="Edit" @click="showEditDialog(row)">
                 编辑
+              </el-button>
+              <el-button type="success" link size="small" @click="handleSetModelRoles(row)">
+                角色
               </el-button>
               <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">
                 删除
@@ -364,6 +423,37 @@ onMounted(async () => {
         <el-button type="primary" @click="handleSubmitEdit">
           确定
         </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 设置模型角色权限对话框 -->
+    <el-dialog
+      v-model="roleDialogVisible"
+      :title="`设置角色权限 - ${currentModelForRole?.llm_name || ''}`"
+      width="500px"
+      @closed="roleDialogClosed"
+    >
+      <div v-loading="roleLoading">
+        <p style="margin-bottom: 15px; color: #909399; font-size: 13px;">
+          选择可以使用此模型的角色。如果不选择任何角色，则所有角色都可以使用。
+        </p>
+        <el-checkbox-group v-model="selectedRoleIds">
+          <el-checkbox
+            v-for="role in allRoles"
+            :key="role.id"
+            :value="role.id"
+            :label="role.id"
+            style="display: block; margin-bottom: 10px;"
+          >
+            {{ role.name }}
+            <el-tag v-if="role.isDefault" type="success" size="small" style="margin-left: 8px;">默认</el-tag>
+          </el-checkbox>
+        </el-checkbox-group>
+        <el-empty v-if="allRoles.length === 0 && !roleLoading" description="暂无可用角色，请先创建角色" />
+      </div>
+      <template #footer>
+        <el-button @click="roleDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="roleLoading" @click="submitModelRoles">确认</el-button>
       </template>
     </el-dialog>
   </div>

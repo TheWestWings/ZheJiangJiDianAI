@@ -20,8 +20,11 @@ import {
   getSystemEmbeddingConfigApi,
   setSystemEmbeddingConfigApi,
   updateKnowledgeBaseApi,
-  loadingEmbeddingModelsApi
+  loadingEmbeddingModelsApi,
+  getKbRolesApi,
+  setKbRolesApi
 } from "@@/apis/kbs/knowledgebase"
+import { getAllRolesApi, type RoleData } from "@@/apis/roles"
 import { getTableDataApi } from "@@/apis/tables"
 import { usePagination } from "@@/composables/usePagination"
 import { CaretRight, Delete, Edit, Loading, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
@@ -169,6 +172,58 @@ const editForm = reactive({
   embd_id: ""
 })
 const editLoading = ref(false)
+
+// 角色权限设置
+const roleDialogVisible = ref(false)
+const roleLoading = ref(false)
+const currentKbForRole = ref<KnowledgeBaseData | null>(null)
+const allRoles = ref<RoleData[]>([])
+const selectedRoleIds = ref<string[]>([])
+
+// 打开角色权限设置对话框
+async function handleSetKbRoles(row: KnowledgeBaseData) {
+  currentKbForRole.value = row
+  roleDialogVisible.value = true
+  roleLoading.value = true
+  
+  try {
+    // 并行获取所有角色和知识库当前角色
+    const [allRolesRes, kbRolesRes] = await Promise.all([
+      getAllRolesApi(),
+      getKbRolesApi(row.id)
+    ])
+    allRoles.value = allRolesRes.data || []
+    selectedRoleIds.value = (kbRolesRes.data || []).map((r: any) => r.id)
+  } catch (error: any) {
+    console.error("获取角色信息失败:", error)
+    ElMessage.error("获取角色信息失败")
+  } finally {
+    roleLoading.value = false
+  }
+}
+
+// 提交角色权限设置
+async function submitKbRoles() {
+  if (!currentKbForRole.value) return
+  
+  roleLoading.value = true
+  try {
+    await setKbRolesApi(currentKbForRole.value.id, selectedRoleIds.value)
+    ElMessage.success("角色权限设置成功")
+    roleDialogVisible.value = false
+  } catch (error: any) {
+    console.error("设置角色权限失败:", error)
+    ElMessage.error("设置角色权限失败")
+  } finally {
+    roleLoading.value = false
+  }
+}
+
+// 关闭角色对话框时重置状态
+function roleDialogClosed() {
+  currentKbForRole.value = null
+  selectedRoleIds.value = []
+}
 
 // // 处理修改知识库
 // function handleEdit(row: KnowledgeBaseData) {
@@ -1316,7 +1371,7 @@ function loadingEmbeddingModels(){
                 {{ scope.row.create_date }}
               </template>
             </el-table-column>
-            <el-table-column fixed="right" label="操作" width="300" align="center">
+            <el-table-column fixed="right" label="操作" width="370" align="center">
               <template #default="scope">
                 <el-button
                   type="primary"
@@ -1337,6 +1392,15 @@ function loadingEmbeddingModels(){
                   @click="handleEdit(scope.row)"
                 >
                   修改
+                </el-button>
+                <el-button
+                  type="success"
+                  text
+                  bg
+                  size="small"
+                  @click="handleSetKbRoles(scope.row)"
+                >
+                  设置角色
                 </el-button>
                 <el-button
                   type="danger"
@@ -1750,6 +1814,37 @@ function loadingEmbeddingModels(){
               保存并测试连接
             </el-button>
           </span>
+        </template>
+      </el-dialog>
+
+      <!-- 设置知识库角色权限对话框 -->
+      <el-dialog
+        v-model="roleDialogVisible"
+        :title="`设置角色权限 - ${currentKbForRole?.name || ''}`"
+        width="500px"
+        @closed="roleDialogClosed"
+      >
+        <div v-loading="roleLoading">
+          <p style="margin-bottom: 15px; color: #909399; font-size: 13px;">
+            选择可以访问此知识库的角色。如果不选择任何角色，则所有角色都可以访问。
+          </p>
+          <el-checkbox-group v-model="selectedRoleIds">
+            <el-checkbox
+              v-for="role in allRoles"
+              :key="role.id"
+              :value="role.id"
+              :label="role.id"
+              style="display: block; margin-bottom: 10px;"
+            >
+              {{ role.name }}
+              <el-tag v-if="role.isDefault" type="success" size="small" style="margin-left: 8px;">默认</el-tag>
+            </el-checkbox>
+          </el-checkbox-group>
+          <el-empty v-if="allRoles.length === 0 && !roleLoading" description="暂无可用角色，请先创建角色" />
+        </div>
+        <template #footer>
+          <el-button @click="roleDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="roleLoading" @click="submitKbRoles">确认</el-button>
         </template>
       </el-dialog>
     </div>

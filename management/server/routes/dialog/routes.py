@@ -297,12 +297,14 @@ def delete_model_route():
 
 # ===================== 模型角色权限 =====================
 
-@dialog_bp.route('/model/<string:llm_factory>/<string:llm_name>/roles', methods=['GET'])
+@dialog_bp.route('/model/<string:llm_factory>/<path:llm_name>/roles', methods=['GET'])
 def get_model_roles_route(llm_factory, llm_name):
-    """获取模型的角色权限"""
+    """获取模型的角色权限
+    
+    注意：使用 path 转换器来支持包含 / 的模型名称（如 ZhipuAI/GLM-4.6V）
+    """
     try:
         from services.roles.service import get_model_roles
-        # 这里使用一个统一的 tenant_id（可以是第一个租户或者系统配置）
         from database import DB_CONFIG
         import mysql.connector
         
@@ -320,9 +322,12 @@ def get_model_roles_route(llm_factory, llm_name):
         return jsonify({'code': 500, 'message': str(e)}), 500
 
 
-@dialog_bp.route('/model/<string:llm_factory>/<string:llm_name>/roles', methods=['PUT'])
+@dialog_bp.route('/model/<string:llm_factory>/<path:llm_name>/roles', methods=['PUT'])
 def set_model_roles_route(llm_factory, llm_name):
-    """设置模型的角色权限"""
+    """设置模型的角色权限
+    
+    注意：使用 path 转换器来支持包含 / 的模型名称（如 ZhipuAI/GLM-4.6V）
+    """
     try:
         from services.roles.service import set_model_roles
         from database import DB_CONFIG
