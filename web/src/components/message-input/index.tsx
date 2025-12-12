@@ -142,6 +142,17 @@ const MessageInput = ({
   const { selectedModel, selectedKbs, setSelectedModel, setSelectedKbs } =
     useChatSelections();
 
+  // 当模型列表变化时，验证并设置默认模型
+  useEffect(() => {
+    if (models && models.length > 0) {
+      // 如果当前选中的模型不在列表中，选择第一个
+      const isValidModel = models.some((m) => m.llm_name === selectedModel);
+      if (!selectedModel || !isValidModel) {
+        setSelectedModel(models[0].llm_name);
+      }
+    }
+  }, [models, selectedModel, setSelectedModel]);
+
   const handlePreview = async (file: UploadFile) => {
     if (!file.url && !file.preview) {
       file.preview = await getBase64(file.originFileObj as FileType);
@@ -449,7 +460,7 @@ const MessageInput = ({
               <RobotOutlined style={{ color: '#666' }} />
               <Select
                 placeholder="模型"
-                style={{ width: 140 }}
+                style={{ width: 220 }}
                 value={selectedModel || undefined}
                 onChange={setSelectedModel}
                 options={models?.map((m) => ({

@@ -798,9 +798,12 @@ Related search terms:
 @manager.route("/available_models", methods=["GET"])  # type: ignore # noqa: F821
 @login_required
 def list_available_models():
-    """获取前台可用的模型列表（仅返回后台全局启用的模型）"""
+    """获取前台可用的模型列表（仅返回后台全局启用且用户有权限的模型）"""
     try:
         from api.db.db_models import TenantLLM
+        
+        # 获取用户角色ID列表
+        user_role_ids = get_user_role_ids(current_user.id)
         
         # 获取所有全局启用的模型（global_enabled=1）
         models = TenantLLM.select().where(
@@ -813,12 +816,14 @@ def list_available_models():
         for model in models:
             key = (model.llm_name, model.llm_factory)
             if key not in seen:
-                seen.add(key)
-                result.append({
-                    "llm_name": model.llm_name,
-                    "llm_factory": model.llm_factory,
-                    "model_type": model.model_type,
-                })
+                # 检查用户是否有权限访问此模型
+                if check_model_permission(model.tenant_id, model.llm_factory, model.llm_name, user_role_ids):
+                    seen.add(key)
+                    result.append({
+                        "llm_name": model.llm_name,
+                        "llm_factory": model.llm_factory,
+                        "model_type": model.model_type,
+                    })
         
         return get_json_result(data=result)
     except Exception as e:
@@ -828,7 +833,7 @@ def list_available_models():
 @manager.route("/available_kbs", methods=["GET"])  # type: ignore # noqa: F821
 @login_required
 def list_available_kbs():
-    """获取当前用户可用的知识库列表"""
+    """获取当前用户可用的知识库列表（基于角色权限过滤）"""
     try:
         from api.db.services.knowledgebase_service import KnowledgebaseService
         from api.db.services.user_service import TenantService
@@ -836,6 +841,9 @@ def list_available_kbs():
         # 获取用户关联的所有租户
         tenants = TenantService.get_joined_tenants_by_user_id(current_user.id)
         tenant_ids = [t["tenant_id"] for t in tenants]
+        
+        # 获取用户角色ID列表
+        user_role_ids = get_user_role_ids(current_user.id)
         
         # 获取所有可访问的知识库
         kbs, _ = KnowledgebaseService.get_by_tenant_ids(
@@ -851,14 +859,112 @@ def list_available_kbs():
         
         result = []
         for kb in kbs:
-            result.append({
-                "id": kb.get("id"),
-                "name": kb.get("name"),
-                "description": kb.get("description", ""),
-                "doc_num": kb.get("doc_num", 0),
-            })
+            # 检查用户是否有权限访问此知识库
+            if check_kb_permission(kb.get("id"), user_role_ids):
+                result.append({
+                    "id": kb.get("id"),
+                    "name": kb.get("name"),
+                    "description": kb.get("description", ""),
+                    "doc_num": kb.get("doc_num", 0),
+                })
         
         return get_json_result(data=result)
     except Exception as e:
         return server_error_response(e)
+
+
+def get_user_role_ids(user_id):
+    """获取用户的角色ID列表"""
+    try:
+        from api.db.db_models import DB
+        
+        with DB.connection_context():
+            cursor = DB.execute_sql(
+                "SELECT role_id FROM user_role WHERE user_id = %s",
+                (user_id,)
+            )
+            role_ids = [row[0] for row in cursor.fetchall()]
+            
+            # 如果用户没有分配角色，获取默认角色
+            if not role_ids:
+                cursor = DB.execute_sql(
+                    "SELECT id FROM role WHERE is_default = 1 AND status = '1'"
+                )
+                role_ids = [row[0] for row in cursor.fetchall()]
+            
+            return role_ids
+    except Exception as e:
+        print(f"获取用户角色失败: {e}")
+        return []
+
+
+def check_kb_permission(kb_id, user_role_ids):
+    """检查用户是否有权限访问知识库
+    
+    规则：
+    - 如果知识库没有配置任何角色权限，则所有用户可访问
+    - 如果知识库配置了角色权限，则只有拥有对应角色的用户可访问
+    """
+    try:
+        from api.db.db_models import DB
+        
+        with DB.connection_context():
+            # 查询知识库配置的角色
+            cursor = DB.execute_sql(
+                "SELECT role_id FROM knowledgebase_role WHERE kb_id = %s",
+                (kb_id,)
+            )
+            kb_role_ids = [row[0] for row in cursor.fetchall()]
+            
+            # 如果没有配置角色，所有用户可访问
+            if not kb_role_ids:
+                return True
+            
+            # 如果用户没有角色，不能访问有权限限制的资源
+            if not user_role_ids:
+                return False
+            
+            # 检查用户角色是否在知识库允许的角色中
+            return bool(set(user_role_ids) & set(kb_role_ids))
+    except Exception as e:
+        print(f"检查知识库权限失败: {e}")
+        return True  # 出错时默认允许访问
+
+
+def check_model_permission(tenant_id, llm_factory, llm_name, user_role_ids):
+    """检查用户是否有权限使用模型
+    
+    规则：
+    - 如果模型没有配置任何角色权限，则所有用户可使用
+    - 如果模型配置了角色权限，则只有拥有对应角色的用户可使用
+    
+    注意：模型权限是全局配置的，不区分租户。只根据 llm_factory 和 llm_name 检查。
+    """
+    try:
+        from api.db.db_models import DB
+        
+        with DB.connection_context():
+            # 查询模型配置的角色（不区分租户，因为同一模型可能存在于多个租户）
+            cursor = DB.execute_sql(
+                """SELECT DISTINCT role_id FROM model_role 
+                   WHERE llm_factory = %s AND llm_name = %s""",
+                (llm_factory, llm_name)
+            )
+            model_role_ids = [row[0] for row in cursor.fetchall()]
+            
+            # 如果没有配置角色，所有用户可使用
+            if not model_role_ids:
+                return True
+            
+            # 如果用户没有角色，不能使用有权限限制的模型
+            if not user_role_ids:
+                return False
+            
+            # 检查用户角色是否在模型允许的角色中
+            return bool(set(user_role_ids) & set(model_role_ids))
+    except Exception as e:
+        print(f"检查模型权限失败: {e}")
+        return True  # 出错时默认允许使用
+
+
 

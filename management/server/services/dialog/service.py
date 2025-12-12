@@ -521,7 +521,10 @@ def create_model(llm_name, llm_factory, model_type, api_base, api_key, global_en
             tenant_id = str(uuid.uuid4()).replace('-', '')
         
         # 插入模型
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # create_time/update_time 是 bigint 毫秒时间戳
+        # create_date/update_date 是 datetime 字符串
+        now_timestamp = int(time.time() * 1000)  # 毫秒时间戳
+        now_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # datetime字符串
         enabled_value = 1 if global_enabled else 0
         
         insert_sql = """
@@ -530,7 +533,7 @@ def create_model(llm_name, llm_factory, model_type, api_base, api_key, global_en
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(insert_sql, (
-            now, now, now, now,
+            now_timestamp, now_datetime, now_timestamp, now_datetime,
             tenant_id, llm_factory, model_type, llm_name, api_key, api_base,
             8192, 0, enabled_value
         ))
@@ -559,11 +562,12 @@ def update_model(llm_name, llm_factory, api_base=None, api_key=None, global_enab
         updates = []
         params = []
         
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now_timestamp = int(time.time() * 1000)  # 毫秒时间戳
+        now_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # datetime字符串
         updates.append("update_time = %s")
-        params.append(now)
+        params.append(now_timestamp)
         updates.append("update_date = %s")
-        params.append(now)
+        params.append(now_datetime)
         
         if api_base is not None:
             updates.append("api_base = %s")

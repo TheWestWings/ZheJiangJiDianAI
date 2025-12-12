@@ -69,11 +69,21 @@ class DialogService(CommonService):
             return False
 
 
-def chat_solo(dialog, messages, stream=True):
-    if llm_id2llm_type(dialog.llm_id) == "image2text":
-        chat_mdl = LLMBundle(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
+def chat_solo(dialog, messages, stream=True, llm_id=None):
+    """
+    单独对话模式（不使用知识库）
+    :param dialog: Dialog对象
+    :param messages: 消息列表
+    :param stream: 是否流式输出
+    :param llm_id: 可选的LLM模型ID，如果不提供则使用dialog.llm_id
+    """
+    # 使用传入的llm_id，如果没有则使用dialog默认值
+    actual_llm_id = llm_id if llm_id else dialog.llm_id
+    
+    if llm_id2llm_type(actual_llm_id) == "image2text":
+        chat_mdl = LLMBundle(dialog.tenant_id, LLMType.IMAGE2TEXT, actual_llm_id)
     else:
-        chat_mdl = LLMBundle(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
+        chat_mdl = LLMBundle(dialog.tenant_id, LLMType.CHAT, actual_llm_id)
 
     prompt_config = dialog.prompt_config
     tts_mdl = None
@@ -107,7 +117,7 @@ def chat(dialog, messages, stream=True, **kwargs):
     kb_ids = kwargs.get("kb_ids") if kwargs.get("kb_ids") is not None else dialog.kb_ids
     
     if not kb_ids:
-        for ans in chat_solo(dialog, messages, stream):
+        for ans in chat_solo(dialog, messages, stream, llm_id=llm_id):
             yield ans
         return
 
