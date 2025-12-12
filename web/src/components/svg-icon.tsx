@@ -1,6 +1,6 @@
 import { IconMap } from '@/constants/llm';
 import { cn } from '@/lib/utils';
-import Icon, { UserOutlined } from '@ant-design/icons';
+import Icon from '@ant-design/icons';
 import { IconComponentProps } from '@ant-design/icons/lib/components/Icon';
 import { Avatar } from 'antd';
 import { AvatarSize } from 'antd/es/avatar/AvatarContext';
@@ -70,7 +70,7 @@ export const LlmIcon = ({
       imgClass={imgClass}
     ></SvgIcon>
   ) : (
-    <Avatar shape="square" size={size} icon={<UserOutlined />} />
+    <Avatar shape="square" size={size} src="/default-avatar.png" />
   );
 };
 

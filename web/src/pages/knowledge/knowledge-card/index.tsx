@@ -1,11 +1,7 @@
 import { KnowledgeRouteKey } from '@/constants/knowledge';
 import { IKnowledge } from '@/interfaces/database/knowledge';
 import { formatDate } from '@/utils/date';
-import {
-  CalendarOutlined,
-  FileTextOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { CalendarOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Avatar, Badge, Card, Space } from 'antd';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
@@ -49,7 +45,7 @@ const KnowledgeCard = ({ item }: IProps) => {
       <Card className={styles.card} onClick={handleCardClick}>
         <div className={styles.container}>
           <div className={styles.content}>
-            <Avatar size={34} icon={<UserOutlined />} src={item.avatar} />
+            <Avatar size={34} src="/default-avatar.png" />
             {/* <OperateDropdown deleteItem={removeKnowledge}></OperateDropdown> */}
           </div>
           <div className={styles.titleWrapper}>

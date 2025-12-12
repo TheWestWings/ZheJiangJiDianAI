@@ -1,5 +1,4 @@
 import { useFetchKnowledgeList } from '@/hooks/knowledge-hooks';
-import { UserOutlined } from '@ant-design/icons';
 import type { TreeDataNode, TreeProps } from 'antd';
 import { Avatar, Layout, Space, Spin, Tree, Typography } from 'antd';
 import classNames from 'classnames';
@@ -109,9 +108,7 @@ const SearchSidebar = ({
       const item = list.find((x) => x.id === node.key);
       return (
         <Space>
-          {node.isLeaf && (
-            <Avatar size={24} icon={<UserOutlined />} src={item?.avatar} />
-          )}
+          {node.isLeaf && <Avatar size={24} src="/default-avatar.png" />}
           <Typography.Text
             ellipsis={{ tooltip: node.title as string }}
             className={node.isLeaf ? styles.knowledgeName : styles.embeddingId}

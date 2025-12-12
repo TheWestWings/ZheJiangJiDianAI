@@ -1,7 +1,6 @@
 import { DocumentParserType } from '@/constants/knowledge';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchKnowledgeList } from '@/hooks/knowledge-hooks';
-import { UserOutlined } from '@ant-design/icons';
 import { Avatar as AntAvatar, Form, Select, Space } from 'antd';
 import { Book } from 'lucide-react';
 import { useFormContext } from 'react-hook-form';
@@ -29,7 +28,7 @@ const KnowledgeBaseItem = ({
   const knowledgeOptions = filteredKnowledgeList.map((x) => ({
     label: (
       <Space>
-        <AntAvatar size={20} icon={<UserOutlined />} src={x.avatar} />
+        <AntAvatar size={20} src="/default-avatar.png" />
         {x.name}
       </Space>
     ),

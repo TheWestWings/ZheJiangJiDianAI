@@ -1,5 +1,4 @@
 import { useFetchKnowledgeList } from '@/hooks/knowledge-hooks';
-import { UserOutlined } from '@ant-design/icons';
 import { Avatar, Flex, Form, InputNumber, Select, Slider, Space } from 'antd';
 import DOMPurify from 'dompurify';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +13,7 @@ export const TagSetItem = () => {
     .map((x) => ({
       label: (
         <Space>
-          <Avatar size={20} icon={<UserOutlined />} src={x.avatar} />
+          <Avatar size={20} src="/default-avatar.png" />
           {x.name}
         </Space>
       ),
