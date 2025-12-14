@@ -24,20 +24,18 @@ const DEFAULT_FORM_DATA: CreateOrUpdateTableRequestData = {
   id: undefined,
   username: "",
   email: "",
-  password: ""
+  password: "",
+  gender: "",
+  department: "",
+  phone: ""
 }
 const dialogVisible = ref<boolean>(false)
 const formRef = ref<FormInstance | null>(null)
 const formData = ref<CreateOrUpdateTableRequestData>(cloneDeep(DEFAULT_FORM_DATA))
 const formRules: FormRules<CreateOrUpdateTableRequestData> = {
-  username: [{ required: true, trigger: "blur", message: "请输入用户名" }],
+  username: [{ required: true, trigger: "blur", message: "请输入姓名" }],
   email: [
-    { required: true, trigger: "blur", message: "请输入邮箱" },
-    {
-      type: "email",
-      message: "请输入正确的邮箱格式",
-      trigger: ["blur", "change"]
-    }
+    { required: true, trigger: "blur", message: "请输入学号/工号" }
   ],
   password: [{ required: true, trigger: "blur", message: "请输入密码" }]
 }
@@ -463,7 +461,8 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       <div class="table-wrapper">
         <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="50" align="center" />
-          <el-table-column prop="username" label="用户名" align="center" sortable="custom" />
+          <el-table-column prop="email" label="学号/工号" align="center" sortable="custom" />
+          <el-table-column prop="username" label="姓名" align="center" sortable="custom" />
           <el-table-column label="管理员角色" width="150" align="center">
             <template #default="scope">
               <el-tag v-if="scope.row.is_super_admin" type="danger" size="small">超级管理员</el-tag>
@@ -471,9 +470,10 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
               <span v-else style="color: #999;">-</span>
             </template>
           </el-table-column>
-          <el-table-column prop="email" label="邮箱" align="center" sortable="custom" />
+          <el-table-column prop="gender" label="性别" width="80" align="center" />
+          <el-table-column prop="department" label="部门" align="center" />
+          <el-table-column prop="phone" label="电话" align="center" />
           <el-table-column prop="createTime" label="创建时间" align="center" sortable="custom" />
-          <el-table-column prop="updateTime" label="更新时间" align="center" sortable="custom" />
           <el-table-column fixed="right" label="操作" width="220" align="center">
             <template #default="scope">
               <el-button type="primary" text bg size="small" :icon="Edit" @click="handleUpdate(scope.row)">
@@ -530,14 +530,26 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       @closed="resetForm"
     >
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" label-position="left">
-        <el-form-item prop="username" label="用户名">
-          <el-input v-model="formData.username" placeholder="请输入" />
+        <el-form-item prop="email" label="学号/工号">
+          <el-input v-model="formData.email" placeholder="请输入学号/工号" :disabled="formData.id !== undefined" />
         </el-form-item>
-        <el-form-item v-if="formData.id === undefined" prop="email" label="用户邮箱">
-          <el-input v-model="formData.email" placeholder="请输入" />
+        <el-form-item prop="username" label="姓名">
+          <el-input v-model="formData.username" placeholder="请输入姓名" />
         </el-form-item>
         <el-form-item v-if="formData.id === undefined" prop="password" label="密码">
-          <el-input v-model="formData.password" placeholder="请输入" />
+          <el-input v-model="formData.password" type="password" placeholder="请输入密码" show-password />
+        </el-form-item>
+        <el-form-item prop="gender" label="性别">
+          <el-select v-model="formData.gender" placeholder="请选择" clearable style="width: 100%">
+            <el-option label="男" value="男" />
+            <el-option label="女" value="女" />
+          </el-select>
+        </el-form-item>
+        <el-form-item prop="department" label="部门">
+          <el-input v-model="formData.department" placeholder="请输入部门" />
+        </el-form-item>
+        <el-form-item prop="phone" label="电话">
+          <el-input v-model="formData.phone" placeholder="请输入电话" />
         </el-form-item>
       </el-form>
       <template #footer>

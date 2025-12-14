@@ -102,7 +102,7 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
         
         # 执行分页查询
         query = f"""
-        SELECT id, nickname, email, create_date, update_date, status, is_superuser, is_system_admin
+        SELECT id, nickname, email, gender, department, phone, create_date, update_date, status, is_superuser, is_system_admin
         FROM user
         {where_sql}
         {sort_clause}
@@ -122,6 +122,9 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
                 "id": user["id"],
                 "username": user["nickname"],
                 "email": user["email"],
+                "gender": user.get("gender", ""),
+                "department": user.get("department", ""),
+                "phone": user.get("phone", ""),
                 "createTime": user["create_date"].strftime("%Y-%m-%d %H:%M:%S") if user["create_date"] else "",
                 "updateTime": user["update_date"].strftime("%Y-%m-%d %H:%M:%S") if user["update_date"] else "",
                 "is_system_admin": user.get("is_system_admin", 0) == 1,
@@ -215,6 +218,9 @@ def create_user(user_data):
         username = user_data.get("username")
         email = user_data.get("email")
         password = user_data.get("password")
+        gender = user_data.get("gender", "")
+        department = user_data.get("department", "")
+        phone = user_data.get("phone", "")
         # 加密密码
         encrypted_password = encrypt_password(password)
 
@@ -235,20 +241,20 @@ def create_user(user_data):
         user_insert_query = """
         INSERT INTO user (
             id, create_time, create_date, update_time, update_date, access_token,
-            nickname, password, email, avatar, language, color_schema, timezone,
+            nickname, gender, department, phone, password, email, avatar, language, color_schema, timezone,
             last_login_time, is_authenticated, is_active, is_anonymous, login_channel,
             status, is_superuser
         ) VALUES (
             %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s,
             %s, %s
         )
         """
         user_data_tuple = (
-            user_id, create_time, current_date, create_time, current_date, None, # 使用修改后的时间
-            username, encrypted_password, email, None, "Chinese", "Bright", "UTC+8 Asia/Shanghai",
-            current_date, 1, 1, 0, "password", # last_login_time 也使用 UTC+8 时间
+            user_id, create_time, current_date, create_time, current_date, None,
+            username, gender, department, phone, encrypted_password, email, None, "Chinese", "Bright", "UTC+8 Asia/Shanghai",
+            current_date, 1, 1, 0, "password",
             1, 0
         )
         cursor.execute(user_insert_query, user_data_tuple)
@@ -354,10 +360,13 @@ def update_user(user_id, user_data):
         cursor = conn.cursor()
         
         query = """
-        UPDATE user SET nickname = %s WHERE id = %s
+        UPDATE user SET nickname = %s, gender = %s, department = %s, phone = %s WHERE id = %s
         """
         cursor.execute(query, (
             user_data.get("username"),
+            user_data.get("gender", ""),
+            user_data.get("department", ""),
+            user_data.get("phone", ""),
             user_id
         ))
         conn.commit()

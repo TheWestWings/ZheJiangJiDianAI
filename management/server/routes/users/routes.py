@@ -281,8 +281,8 @@ def batch_create_users_route():
         except Exception as e:
             return jsonify({"code": 400, "message": f"Excel文件读取失败: {str(e)}"}), 400
         
-        # 检查必要列是否存在
-        required_columns = ['username', 'email', 'password']
+        # 检查必要列是否存在（中文字段名）
+        required_columns = ['工号/学号', '姓名', '密码']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             return jsonify({
@@ -296,9 +296,17 @@ def batch_create_users_route():
         
         for index, row in df.iterrows():
             try:
-                username = str(row['username']).strip()
-                email = str(row['email']).strip()
-                password = str(row['password']).strip()
+                email = str(row['工号/学号']).strip()  # 学号/工号
+                username = str(row['姓名']).strip()
+                password = str(row['密码']).strip()
+                gender = str(row.get('性别', '')).strip() if '性别' in df.columns else ''
+                department = str(row.get('部门', '')).strip() if '部门' in df.columns else ''
+                phone = str(row.get('电话', '')).strip() if '电话' in df.columns else ''
+                
+                # 处理nan值
+                gender = '' if gender == 'nan' else gender
+                department = '' if department == 'nan' else department
+                phone = '' if phone == 'nan' else phone
                 
                 # 跳过空行
                 if not username or not email or not password or username == 'nan':
@@ -307,7 +315,10 @@ def batch_create_users_route():
                 user_data = {
                     "username": username,
                     "email": email,
-                    "password": password
+                    "password": password,
+                    "gender": gender,
+                    "department": department,
+                    "phone": phone
                 }
                 
                 result = create_user(user_data)
@@ -353,9 +364,12 @@ def download_user_template():
         
         # 创建模板数据（只包含表头，不包含示例数据）
         template_data = {
-            'username': [],
-            'email': [],
-            'password': []
+            '工号/学号': [],
+            '姓名': [],
+            '密码': [],
+            '性别': [],
+            '部门': [],
+            '电话': []
         }
         
         df = pd.DataFrame(template_data)

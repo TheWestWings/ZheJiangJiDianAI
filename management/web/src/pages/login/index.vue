@@ -92,7 +92,7 @@ function handleLogin() {
           <el-form-item prop="username">
             <el-input
               v-model.trim="loginFormData.username"
-              placeholder="用户名"
+              placeholder="学号/工号"
               type="text"
               tabindex="1"
               :prefix-icon="User"

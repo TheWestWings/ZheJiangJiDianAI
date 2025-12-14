@@ -444,12 +444,15 @@ def fill_db_model_object(model_object, human_model_dict):
 class User(DataBaseModel, UserMixin):
     id = CharField(max_length=32, primary_key=True)
     access_token = CharField(max_length=255, null=True, index=True)
-    nickname = CharField(max_length=100, null=False, help_text="nicky name", index=True)
+    nickname = CharField(max_length=100, null=False, help_text="姓名", index=True)
+    gender = CharField(max_length=10, null=True, help_text="性别")
+    department = CharField(max_length=100, null=True, help_text="部门")
+    phone = CharField(max_length=20, null=True, help_text="电话")
     password = CharField(max_length=255, null=True, help_text="password", index=True)
     email = CharField(
         max_length=255,
         null=False,
-        help_text="email",
+        help_text="学号/工号",
         index=True)
     avatar = TextField(null=True, help_text="avatar base64 string")
     language = CharField(
