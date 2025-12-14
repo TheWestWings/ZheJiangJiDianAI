@@ -45,6 +45,16 @@ class TenantLLMService(CommonService):
             objs = cls.query(tenant_id=tenant_id, llm_name=mdlnm)
         else:
             objs = cls.query(tenant_id=tenant_id, llm_name=mdlnm, llm_factory=fid)
+        
+        # 如果用户 tenant 下找不到，回退到 system_admin
+        if not objs:
+            system_tenant_id = os.getenv("SYSTEM_TENANT_ID", "system_admin")
+            if tenant_id != system_tenant_id:
+                if not fid:
+                    objs = cls.query(tenant_id=system_tenant_id, llm_name=mdlnm)
+                else:
+                    objs = cls.query(tenant_id=system_tenant_id, llm_name=mdlnm, llm_factory=fid)
+        
         if not objs:
             return
         return objs[0]

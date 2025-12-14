@@ -20,10 +20,15 @@ interface ModelData {
 // 状态
 const loading = ref(false)
 const modelList = ref<ModelData[]>([])
+const allModels = ref<ModelData[]>([]) // 存储所有模型用于分页
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const searchName = ref("")
+
+// 多选状态
+const multipleSelection = ref<ModelData[]>([])
+const tableRef = ref()
 
 // 编辑对话框状态
 const editDialogVisible = ref(false)
@@ -65,8 +70,11 @@ async function getModelList() {
         )
       }
       
-      modelList.value = models
+      allModels.value = models
       total.value = models.length
+      
+      // 分页处理
+      updatePageData()
     }
   } catch (error) {
     console.error("获取模型列表失败:", error)
@@ -77,14 +85,21 @@ async function getModelList() {
 }
 
 /**
+ * 更新当前页数据
+ */
+function updatePageData() {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  modelList.value = allModels.value.slice(start, end)
+  // 清空选择
+  multipleSelection.value = []
+}
+
+/**
  * 切换模型启用状态
- * 注意：el-switch 的 @change 事件在值改变后触发，所以 row.global_enabled 已经是新值
  */
 async function handleToggleEnabled(row: ModelData) {
   try {
-    // row.global_enabled 此时已经是切换后的值
-    // 如果是 true，说明用户想要启用，调用 enable 接口
-    // 如果是 false，说明用户想要禁用，调用 disable 接口
     const endpoint = row.global_enabled ? "/api/v1/dialog/model/enable" : "/api/v1/dialog/model/disable"
     const response = await axios.post(endpoint, {
       llm_name: row.llm_name,
@@ -94,16 +109,21 @@ async function handleToggleEnabled(row: ModelData) {
     if (response.data.code === 0) {
       ElMessage.success(row.global_enabled ? "模型已启用" : "模型已禁用")
     } else {
-      // 操作失败，恢复原值
       row.global_enabled = !row.global_enabled
       ElMessage.error(response.data.message || "操作失败")
     }
   } catch (error) {
-    // 操作失败，恢复原值
     row.global_enabled = !row.global_enabled
     console.error("切换模型状态失败:", error)
     ElMessage.error("操作失败")
   }
+}
+
+/**
+ * 表格多选事件
+ */
+function handleSelectionChange(selection: ModelData[]) {
+  multipleSelection.value = selection
 }
 
 /**
@@ -128,7 +148,16 @@ function handleRefresh() {
  */
 function handlePageChange(page: number) {
   currentPage.value = page
-  getModelList()
+  updatePageData()
+}
+
+/**
+ * 每页条数变化
+ */
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+  updatePageData()
 }
 
 /**
@@ -156,7 +185,7 @@ function showEditDialog(row: ModelData) {
   isEditing.value = true
   editForm.value = { 
     ...row,
-    api_key: "" // 不显示已有的 API Key
+    api_key: ""
   }
   editDialogVisible.value = true
 }
@@ -171,7 +200,6 @@ async function handleSubmitEdit() {
     await editFormRef.value.validate()
     
     if (isEditing.value) {
-      // 编辑模型
       const response = await axios.post("/api/v1/dialog/model/update", editForm.value)
       if (response.data.code === 0) {
         ElMessage.success("模型更新成功")
@@ -181,7 +209,6 @@ async function handleSubmitEdit() {
         ElMessage.error(response.data.message || "更新失败")
       }
     } else {
-      // 新增模型
       const response = await axios.post("/api/v1/dialog/model/create", editForm.value)
       if (response.data.code === 0) {
         ElMessage.success("模型添加成功")
@@ -224,9 +251,47 @@ function handleDelete(row: ModelData) {
       console.error("删除模型失败:", error)
       ElMessage.error("删除失败")
     }
-  }).catch(() => {
-    // 用户取消
-  })
+  }).catch(() => {})
+}
+
+/**
+ * 批量删除
+ */
+function handleBatchDelete() {
+  if (multipleSelection.value.length === 0) {
+    ElMessage.warning("请至少选择一条记录")
+    return
+  }
+  
+  ElMessageBox.confirm(
+    `确定要删除选中的 ${multipleSelection.value.length} 个模型吗？此操作不可恢复。`,
+    "批量删除确认",
+    {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    }
+  ).then(async () => {
+    loading.value = true
+    try {
+      // 并行删除所有选中的模型
+      await Promise.all(
+        multipleSelection.value.map(row => 
+          axios.post("/api/v1/dialog/model/delete", {
+            llm_name: row.llm_name,
+            llm_factory: row.llm_factory
+          })
+        )
+      )
+      ElMessage.success("批量删除成功")
+      getModelList()
+    } catch (error) {
+      console.error("批量删除失败:", error)
+      ElMessage.error("批量删除失败")
+    } finally {
+      loading.value = false
+    }
+  }).catch(() => {})
 }
 
 // 角色权限设置
@@ -236,14 +301,12 @@ const currentModelForRole = ref<ModelData | null>(null)
 const allRoles = ref<RoleData[]>([])
 const selectedRoleIds = ref<string[]>([])
 
-// 打开角色权限设置对话框
 async function handleSetModelRoles(row: ModelData) {
   currentModelForRole.value = row
   roleDialogVisible.value = true
   roleLoading.value = true
   
   try {
-    // 并行获取所有角色和模型当前角色
     const [allRolesRes, modelRolesRes] = await Promise.all([
       getAllRolesApi(),
       axios.get(`/api/v1/dialog/model/${encodeURIComponent(row.llm_factory)}/${encodeURIComponent(row.llm_name)}/roles`)
@@ -258,7 +321,6 @@ async function handleSetModelRoles(row: ModelData) {
   }
 }
 
-// 提交角色权限设置
 async function submitModelRoles() {
   if (!currentModelForRole.value) return
   
@@ -278,13 +340,11 @@ async function submitModelRoles() {
   }
 }
 
-// 关闭角色对话框时重置状态
 function roleDialogClosed() {
   currentModelForRole.value = null
   selectedRoleIds.value = []
 }
 
-// 初始化
 onMounted(async () => {
   await getModelList()
 })
@@ -308,6 +368,9 @@ onMounted(async () => {
           <el-button type="success" :icon="Plus" @click="showAddDialog">
             新增模型
           </el-button>
+          <el-button type="danger" :icon="Delete" @click="handleBatchDelete">
+            批量删除
+          </el-button>
         </el-col>
         <el-col :span="6" style="text-align: right">
           <el-text type="info">
@@ -319,7 +382,15 @@ onMounted(async () => {
 
     <!-- 表格 -->
     <el-card shadow="hover" class="table-wrapper">
-      <el-table v-loading="loading" :data="modelList" border stripe>
+      <el-table 
+        ref="tableRef"
+        v-loading="loading" 
+        :data="modelList" 
+        border 
+        stripe
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="50" align="center" />
         <el-table-column label="启用" width="80" align="center">
           <template #default="{ row }">
             <el-switch
@@ -364,11 +435,13 @@ onMounted(async () => {
         v-if="total > 0"
         class="pagination"
         background
-        layout="total, prev, pager, next"
+        layout="total, sizes, prev, pager, next, jumper"
         :total="total"
         :page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
         :current-page="currentPage"
         @current-change="handlePageChange"
+        @size-change="handleSizeChange"
       />
     </el-card>
 
@@ -475,3 +548,4 @@ onMounted(async () => {
   justify-content: center;
 }
 </style>
+

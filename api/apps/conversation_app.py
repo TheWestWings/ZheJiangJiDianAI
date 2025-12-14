@@ -178,7 +178,7 @@ def set_conversation():
         e, dia = DialogService.get_by_id(req["dialog_id"])
         if not e:
             return get_data_error_result(message="Dialog not found")
-        conv = {"id": conv_id, "dialog_id": req["dialog_id"], "name": req.get("name", "New conversation"), "message": [{"role": "assistant", "content": dia.prompt_config["prologue"]}]}
+        conv = {"id": conv_id, "dialog_id": req["dialog_id"], "name": req.get("name", "New conversation"), "message": [{"role": "assistant", "content": dia.prompt_config["prologue"]}], "user_id": current_user.id}
         ConversationService.save(**conv)
         return get_json_result(data=conv)
     except Exception as e:
@@ -188,6 +188,7 @@ def set_conversation():
 @manager.route("/get", methods=["GET"])  # type: ignore # type: ignore # noqa: F821
 @login_required
 def get():
+    import os
     conv_id = request.args["conversation_id"]
     try:
         e, conv = ConversationService.get_by_id(conv_id)
@@ -195,13 +196,27 @@ def get():
             return get_data_error_result(message="Conversation not found!")
         tenants = UserTenantService.query(user_id=current_user.id)
         avatar = None
+        dialog_found = False
+        
+        # 检查用户自己的对话框
         for tenant in tenants:
             dialog = DialogService.query(tenant_id=tenant.tenant_id, id=conv.dialog_id)
             if dialog and len(dialog) > 0:
                 avatar = dialog[0].icon
+                dialog_found = True
                 break
-        else:
+        
+        # 如果用户没有，检查共享对话框
+        if not dialog_found:
+            system_admin_id = os.getenv("SYSTEM_ADMIN_ID", "d807e79c13a44c0391df3750fe82090b")
+            shared_dialog = DialogService.query(tenant_id=system_admin_id, id=conv.dialog_id)
+            if shared_dialog and len(shared_dialog) > 0:
+                avatar = shared_dialog[0].icon
+                dialog_found = True
+        
+        if not dialog_found:
             return get_json_result(data=False, message="Only owner of conversation authorized for this operation.", code=settings.RetCode.OPERATING_ERROR)
+
 
         def get_value(d, k1, k2):
             return d.get(k1, d.get(k2))
@@ -275,11 +290,20 @@ def rm():
 @manager.route("/list", methods=["GET"])  # type: ignore # noqa: F821
 @login_required
 def list_convsersation():
+    import os
     dialog_id = request.args["dialog_id"]
     try:
-        if not DialogService.query(tenant_id=current_user.id, id=dialog_id):
+        # 检查是否是用户自己的对话框
+        is_owner = DialogService.query(tenant_id=current_user.id, id=dialog_id)
+        # 检查是否是共享对话框（来自系统管理员）
+        system_admin_id = os.getenv("SYSTEM_ADMIN_ID", "d807e79c13a44c0391df3750fe82090b")
+        is_shared = DialogService.query(tenant_id=system_admin_id, id=dialog_id)
+        
+        if not is_owner and not is_shared:
             return get_json_result(data=False, message="Only owner of dialog authorized for this operation.", code=settings.RetCode.OPERATING_ERROR)
-        convs = ConversationService.query(dialog_id=dialog_id, order_by=ConversationService.model.create_time, reverse=True)
+        
+        # 按用户ID过滤会话，确保每个用户只能看到自己的聊天历史
+        convs = ConversationService.query(dialog_id=dialog_id, user_id=current_user.id, order_by=ConversationService.model.create_time, reverse=True)
 
         convs = [d.to_dict() for d in convs]
         return get_json_result(data=convs)
@@ -354,7 +378,7 @@ def completion():
         
         # 处理 use_all_kbs 参数：当为 true 时，获取用户所有可用的知识库
         if req.get("use_all_kbs"):
-            all_kbs = KnowledgebaseService.get_list(current_user.id, 1, 1000, "create_time", True, None, None)
+            all_kbs = KnowledgebaseService.get_list([current_user.id], current_user.id, 1, 1000, "create_time", True, None, None)
             kb_ids = [kb["id"] for kb in all_kbs]
             req["kb_ids"] = kb_ids
             del req["use_all_kbs"]

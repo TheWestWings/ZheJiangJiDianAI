@@ -114,7 +114,7 @@ def chat(dialog, messages, stream=True, **kwargs):
     # 支持从请求中动态传入 llm_id 和 kb_ids，覆盖 dialog 的默认值
     # 使用 is not None 检查，这样空数组 [] 也能被正确处理（表示不使用知识库）
     llm_id = kwargs.get("llm_id") if kwargs.get("llm_id") else dialog.llm_id
-    kb_ids = kwargs.get("kb_ids") if kwargs.get("kb_ids") is not None else dialog.kb_ids
+    kb_ids = kwargs.get("kb_ids") if kwargs.get("kb_ids") else dialog.kb_ids
     
     if not kb_ids:
         for ans in chat_solo(dialog, messages, stream, llm_id=llm_id):

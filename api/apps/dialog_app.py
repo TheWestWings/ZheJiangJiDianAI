@@ -140,9 +140,23 @@ def get_kb_names(kb_ids):
 @manager.route("/list", methods=["GET"])  # noqa: F821
 @login_required
 def list_dialogs():
+    import os
     try:
+        # 获取用户自己的助理
         diags = DialogService.query(tenant_id=current_user.id, status=StatusEnum.VALID.value, reverse=True, order_by=DialogService.model.create_time)
         diags = [d.to_dict() for d in diags]
+        
+        # 获取系统共享的助理（来自 system_admin）
+        system_admin_id = os.getenv("SYSTEM_ADMIN_ID", "d807e79c13a44c0391df3750fe82090b")
+        if current_user.id != system_admin_id:
+            shared_diags = DialogService.query(tenant_id=system_admin_id, status=StatusEnum.VALID.value, reverse=True, order_by=DialogService.model.create_time)
+            shared_diags = [d.to_dict() for d in shared_diags]
+            # 标记为共享助理
+            for d in shared_diags:
+                d["is_shared"] = True
+            # 将共享助理添加到列表开头
+            diags = shared_diags + diags
+        
         for d in diags:
             d["kb_ids"], d["kb_names"] = get_kb_names(d["kb_ids"])
         return get_json_result(data=diags)
