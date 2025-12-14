@@ -42,10 +42,37 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 
 项目文档：[xdxsb.top/ragflow-plus](https://xdxsb.top/ragflow-plus)
 
-使用 Docker 快速启动：
+### 🐳 Docker 快速部署
+
 ```bash
+# 克隆项目
+git clone https://github.com/zstar1003/ragflow-plus.git
+cd ragflow-plus
+
+# 配置环境变量
+cp docker/.env.example docker/.env
+# 编辑 docker/.env 修改密码等配置
+
+# 一键启动
+./scripts/start_docker.sh
+# 或手动启动
 docker compose -f docker/docker-compose.yml up -d
 ```
+
+### 📖 部署文档
+
+| 文档 | 说明 |
+|------|------|
+| [DEPLOYMENT.md](DEPLOYMENT.md) | 全 Docker 部署指南 |
+| [DEPLOYMENT_HYBRID.md](DEPLOYMENT_HYBRID.md) | 混合部署指南（中间件 Docker + 源码） |
+
+### 🔗 访问地址
+
+| 服务 | 地址 | 默认账号 |
+|------|------|----------|
+| 前台界面 | http://localhost:80 | 注册新用户 |
+| 管理后台 | http://localhost:8888 | admin / (见 .env 配置) |
+
 
 ## ❓ 问题解答
 

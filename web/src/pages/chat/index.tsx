@@ -29,7 +29,7 @@ import {
 } from 'antd';
 import { MenuItemProps } from 'antd/lib/menu/MenuItem';
 import classNames from 'classnames';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ChatContainer from './chat-container';
 import {
   useDeleteConversation,
@@ -81,6 +81,43 @@ const Chat = () => {
     FONT_SIZE_STORAGE_KEY,
     DEFAULT_FONT_SIZE,
   );
+
+  // 可拖拽调节宽度
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const isResizing = useRef(false);
+  const MIN_WIDTH = 200;
+  const MAX_WIDTH = 450;
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      const newWidth = e.clientX;
+      if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const handleConversationCardEnter = (id: string) => () => {
     handleConversationItemEnter(id);
@@ -157,6 +194,7 @@ const Chat = () => {
         className={classNames(styles.chatTitleWrapper, {
           [styles.chatTitleWrapperCollapsed]: historyCollapsed,
         })}
+        style={{ width: historyCollapsed ? 60 : sidebarWidth }}
       >
         <Flex flex={1} vertical>
           <Flex
@@ -245,7 +283,10 @@ const Chat = () => {
           )}
         </Flex>
       </Flex>
-      <Divider type={'vertical'} className={styles.divider}></Divider>
+      {/* 拖拽调节宽度的手柄 */}
+      {!historyCollapsed && (
+        <div className={styles.resizeHandle} onMouseDown={handleMouseDown} />
+      )}
       <ChatContainer
         controller={controller}
         fontSize={fontSize}

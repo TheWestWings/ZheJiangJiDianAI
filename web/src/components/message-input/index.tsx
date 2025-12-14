@@ -354,7 +354,7 @@ const MessageInput = ({
     <Flex gap={1} vertical className={styles.messageInputWrapper}>
       <TextArea
         size="large"
-        placeholder={t('sendPlaceholder')}
+        placeholder="请输入问题"
         value={value}
         allowClear
         disabled={disabled}
