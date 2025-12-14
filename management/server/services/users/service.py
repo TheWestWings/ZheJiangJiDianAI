@@ -1,8 +1,66 @@
 import mysql.connector
 import pytz
+import os
 from datetime import datetime
 from utils import generate_uuid, encrypt_password
 from database import DB_CONFIG
+
+# 超级管理员用户ID（从环境变量读取）
+SUPER_ADMIN_USER_ID = os.getenv("SUPER_ADMIN_USER_ID", "d807e79c13a44c0391df3750fe82090b")
+
+
+def is_super_admin(user_id):
+    """检查用户是否为超级管理员"""
+    return user_id == SUPER_ADMIN_USER_ID
+
+
+def is_system_admin(user_id):
+    """检查用户是否为系统管理员"""
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT is_system_admin FROM user WHERE id = %s", (user_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return result and result.get('is_system_admin', 0) == 1
+    except mysql.connector.Error as err:
+        print(f"检查系统管理员错误: {err}")
+        return False
+
+
+def can_access_admin(user_id):
+    """检查用户是否可以访问后台管理"""
+    return is_super_admin(user_id) or is_system_admin(user_id)
+
+
+def set_system_admin(user_id, is_admin=True):
+    """设置或取消系统管理员"""
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        
+        # 不能将超级管理员设置为系统管理员（超管权限更高）
+        if is_super_admin(user_id):
+            cursor.close()
+            conn.close()
+            return False, "超级管理员不能被设置为系统管理员"
+        
+        cursor.execute(
+            "UPDATE user SET is_system_admin = %s WHERE id = %s",
+            (1 if is_admin else 0, user_id)
+        )
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        
+        if affected > 0:
+            return True, "操作成功"
+        return False, "用户不存在"
+    except mysql.connector.Error as err:
+        print(f"设置系统管理员错误: {err}")
+        return False, str(err)
 
 def get_users_with_pagination(current_page, page_size, username='', email='', sort_by="create_time",sort_order="desc"):
     """查询用户信息，支持分页和条件筛选"""
@@ -44,7 +102,7 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
         
         # 执行分页查询
         query = f"""
-        SELECT id, nickname, email, create_date, update_date, status, is_superuser, create_date
+        SELECT id, nickname, email, create_date, update_date, status, is_superuser, is_system_admin
         FROM user
         {where_sql}
         {sort_clause}
@@ -66,6 +124,8 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
                 "email": user["email"],
                 "createTime": user["create_date"].strftime("%Y-%m-%d %H:%M:%S") if user["create_date"] else "",
                 "updateTime": user["update_date"].strftime("%Y-%m-%d %H:%M:%S") if user["update_date"] else "",
+                "is_system_admin": user.get("is_system_admin", 0) == 1,
+                "is_super_admin": user["id"] == SUPER_ADMIN_USER_ID,
             })
         
         return formatted_users, total

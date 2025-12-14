@@ -1,5 +1,10 @@
-from flask import jsonify, request
-from services.users.service import get_users_with_pagination, delete_user, create_user, update_user, reset_user_password
+from flask import jsonify, request, g
+from services.users.service import (
+    get_users_with_pagination, delete_user, create_user, update_user, 
+    reset_user_password, set_system_admin, is_super_admin, is_system_admin, 
+    can_access_admin, SUPER_ADMIN_USER_ID
+)
+from middleware.permission import require_super_admin
 from .. import users_bp
 
 @users_bp.route('', methods=['GET'])
@@ -78,14 +83,98 @@ def update_user_route(user_id):
 
 @users_bp.route('/me', methods=['GET'])
 def get_current_user():
+    """获取当前登录用户信息"""
+    # 从 g 对象获取已解析的用户信息
+    current_user_id = getattr(g, 'user_id', None)
+    is_super = getattr(g, 'is_super_admin', False)
+    is_sys_admin = getattr(g, 'is_system_admin', False)
+    username = getattr(g, 'username', 'admin')
+    
+    # 如果没有用户ID但有超管标识（.env 超管登录）
+    if not current_user_id and is_super:
+        return jsonify({
+            "code": 0,
+            "data": {
+                "username": username,
+                "roles": ["admin"],
+                "is_super_admin": True,
+                "is_system_admin": False
+            },
+            "message": "获取用户信息成功"
+        })
+    
+    # 有用户ID的情况（数据库用户）
+    if current_user_id:
+        return jsonify({
+            "code": 0,
+            "data": {
+                "user_id": current_user_id,
+                "username": username,
+                "roles": ["admin"],
+                "is_super_admin": is_super,
+                "is_system_admin": is_sys_admin,
+                "can_access_admin": is_super or is_sys_admin
+            },
+            "message": "获取用户信息成功"
+        })
+    
+    # 向后兼容：从 token 解析的超管
     return jsonify({
         "code": 0,
         "data": {
             "username": "admin",
-            "roles": ["admin"]
+            "roles": ["admin"],
+            "is_super_admin": is_super,
+            "is_system_admin": is_sys_admin
         },
         "message": "获取用户信息成功"
     })
+
+
+@users_bp.route('/<string:user_id>/set-system-admin', methods=['POST'])
+@require_super_admin
+def set_system_admin_route(user_id):
+    """设置用户为系统管理员（仅超级管理员可操作）"""
+    try:
+        success, message = set_system_admin(user_id, True)
+        if success:
+            return jsonify({
+                "code": 0,
+                "message": "设置系统管理员成功"
+            })
+        else:
+            return jsonify({
+                "code": 400,
+                "message": message
+            }), 400
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": f"设置系统管理员失败: {str(e)}"
+        }), 500
+
+
+@users_bp.route('/<string:user_id>/unset-system-admin', methods=['POST'])
+@require_super_admin
+def unset_system_admin_route(user_id):
+    """取消用户的系统管理员身份（仅超级管理员可操作）"""
+    try:
+        success, message = set_system_admin(user_id, False)
+        if success:
+            return jsonify({
+                "code": 0,
+                "message": "取消系统管理员成功"
+            })
+        else:
+            return jsonify({
+                "code": 400,
+                "message": message
+            }), 400
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": f"取消系统管理员失败: {str(e)}"
+        }), 500
 
 @users_bp.route('/<string:user_id>/reset-password', methods=['PUT'])
 def reset_password_route(user_id):

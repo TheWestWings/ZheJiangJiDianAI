@@ -4,8 +4,12 @@ import type { FormInstance, FormRules } from "element-plus"
 import { createTableDataApi, deleteTableDataApi, getTableDataApi, resetPasswordApi, updateTableDataApi } from "@@/apis/tables"
 import { getAllRolesApi, getUserRolesApi, setUserRolesApi, type RoleData } from "@@/apis/roles"
 import { usePagination } from "@@/composables/usePagination"
-import { CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search, UserFilled, Upload, Download } from "@element-plus/icons-vue"
+import { CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search, UserFilled, Upload, Download, Avatar, ArrowDown } from "@element-plus/icons-vue"
 import { cloneDeep } from "lodash-es"
+import { request } from "@/http/axios"
+import { useUserStore } from "@/pinia/stores/user"
+
+const userStore = useUserStore()
 
 defineOptions({
   // 命名当前组件
@@ -101,6 +105,60 @@ function submitSetRoles() {
 function roleDialogClosed() {
   currentRoleUserId.value = undefined
   selectedRoleIds.value = []
+}
+// #endregion
+
+// #region 系统管理员设置
+async function handleSetSystemAdmin(row: TableData) {
+  const isCurrentlyAdmin = row.is_system_admin
+  const action = isCurrentlyAdmin ? '取消' : '设置'
+  
+  try {
+    await ElMessageBox.confirm(
+      `确认${action}用户 "${row.username}" 为系统管理员？`,
+      '提示',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    
+    const endpoint = isCurrentlyAdmin 
+      ? `/api/v1/users/${row.id}/unset-system-admin`
+      : `/api/v1/users/${row.id}/set-system-admin`
+    
+    const response = await request<{ code: number; message: string }>({
+      url: endpoint,
+      method: 'POST'
+    })
+    if (response.code === 0) {
+      ElMessage.success(`${action}系统管理员成功`)
+      getTableData()
+    } else {
+      ElMessage.error(response.message || `${action}系统管理员失败`)
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error(`${action}系统管理员失败:`, error)
+      ElMessage.error(error.message || `${action}系统管理员失败`)
+    }
+  }
+}
+// #endregion
+
+// #region 下拉菜单命令处理
+function handleDropdownCommand(command: string, row: TableData) {
+  switch (command) {
+    case 'setRoles':
+      handleSetRoles(row)
+      break
+    case 'resetPassword':
+      handleResetPassword(row)
+      break
+    case 'toggleAdmin':
+      handleSetSystemAdmin(row)
+      break
+    case 'delete':
+      handleDelete(row)
+      break
+  }
 }
 // #endregion
 
@@ -406,23 +464,47 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
         <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="50" align="center" />
           <el-table-column prop="username" label="用户名" align="center" sortable="custom" />
+          <el-table-column label="管理员角色" width="150" align="center">
+            <template #default="scope">
+              <el-tag v-if="scope.row.is_super_admin" type="danger" size="small">超级管理员</el-tag>
+              <el-tag v-else-if="scope.row.is_system_admin" type="warning" size="small">系统管理员</el-tag>
+              <span v-else style="color: #999;">-</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="email" label="邮箱" align="center" sortable="custom" />
           <el-table-column prop="createTime" label="创建时间" align="center" sortable="custom" />
           <el-table-column prop="updateTime" label="更新时间" align="center" sortable="custom" />
-          <el-table-column fixed="right" label="操作" width="380" align="center">
+          <el-table-column fixed="right" label="操作" width="220" align="center">
             <template #default="scope">
               <el-button type="primary" text bg size="small" :icon="Edit" @click="handleUpdate(scope.row)">
-                修改用户名
+                编辑
               </el-button>
-              <el-button type="success" text bg size="small" :icon="UserFilled" @click="handleSetRoles(scope.row)">
-                设置角色
-              </el-button>
-              <el-button type="warning" text bg size="small" :icon="Key" @click="handleResetPassword(scope.row)">
-                重置密码
-              </el-button>
-              <el-button type="danger" text bg size="small" :icon="Delete" @click="handleDelete(scope.row)">
-                删除
-              </el-button>
+              <el-dropdown trigger="click" @command="(cmd: string) => handleDropdownCommand(cmd, scope.row)">
+                <el-button type="info" text bg size="small">
+                  更多
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="setRoles" :icon="UserFilled">
+                      设置角色
+                    </el-dropdown-item>
+                    <el-dropdown-item command="resetPassword" :icon="Key">
+                      重置密码
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      v-if="!scope.row.is_super_admin && userStore.is_super_admin"
+                      command="toggleAdmin"
+                      :icon="Avatar"
+                    >
+                      {{ scope.row.is_system_admin ? '取消系统管理员' : '设置系统管理员' }}
+                    </el-dropdown-item>
+                    <el-dropdown-item divided command="delete" :icon="Delete" style="color: var(--el-color-danger);">
+                      删除用户
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </template>
           </el-table-column>
         </el-table>

@@ -76,7 +76,8 @@ export const constantRoutes: RouteRecordRaw[] = [
                     title: "团队管理",
                     svgIcon: "team-management",
                     affix: false,
-                    keepAlive: true
+                    keepAlive: true,
+                    requireSuperAdmin: true
                 }
             }
         ]
@@ -94,7 +95,8 @@ export const constantRoutes: RouteRecordRaw[] = [
                     title: "用户配置",
                     svgIcon: "user-config",
                     affix: false,
-                    keepAlive: true
+                    keepAlive: true,
+                    requireSuperAdmin: true
                 }
             }
         ]
@@ -148,7 +150,8 @@ export const constantRoutes: RouteRecordRaw[] = [
                     title: "用户会话管理",
                     svgIcon: "conversation",
                     affix: false,
-                    keepAlive: true
+                    keepAlive: true,
+                    requireSuperAdmin: true
                 }
             }
         ]

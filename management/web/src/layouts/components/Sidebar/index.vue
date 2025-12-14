@@ -2,6 +2,7 @@
 import { useAppStore } from "@/pinia/stores/app"
 import { usePermissionStore } from "@/pinia/stores/permission"
 import { useSettingsStore } from "@/pinia/stores/settings"
+import { useUserStore } from "@/pinia/stores/user"
 import { useDevice } from "@@/composables/useDevice"
 import { useLayoutMode } from "@@/composables/useLayoutMode"
 import { getCssVar } from "@@/utils/css"
@@ -18,9 +19,23 @@ const route = useRoute()
 const appStore = useAppStore()
 const permissionStore = usePermissionStore()
 const settingsStore = useSettingsStore()
+const userStore = useUserStore()
 
 const activeMenu = computed(() => route.meta.activeMenu || route.path)
-const noHiddenRoutes = computed(() => permissionStore.routes.filter(item => !item.meta?.hidden))
+
+// 过滤路由：系统管理员看不到需要超管权限的页面
+const noHiddenRoutes = computed(() => {
+  return permissionStore.routes.filter(item => {
+    // 过滤隐藏的路由
+    if (item.meta?.hidden) return false
+    // 如果不是超级管理员，过滤需要超管权限的路由
+    if (item.children?.[0]?.meta?.requireSuperAdmin && !userStore.is_super_admin) {
+      return false
+    }
+    return true
+  })
+})
+
 const isCollapse = computed(() => !appStore.sidebar.opened)
 const isLogo = computed(() => isLeft.value && settingsStore.showLogo)
 const backgroundColor = computed(() => (isLeft.value ? v3SidebarMenuBgColor : undefined))
