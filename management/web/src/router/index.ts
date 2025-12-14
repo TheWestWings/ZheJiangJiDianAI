@@ -188,6 +188,24 @@ export const constantRoutes: RouteRecordRaw[] = [
                 }
             }
         ]
+    },
+    {
+        path: "/model-provider",
+        component: Layouts,
+        redirect: "/model-provider/index",
+        children: [
+            {
+                path: "index",
+                component: () => import("@/pages/model-provider/index.vue"),
+                name: "ModelProvider",
+                meta: {
+                    title: "模型提供商",
+                    elIcon: "Connection",
+                    affix: false,
+                    keepAlive: true
+                }
+            }
+        ]
     }
 ]
 

@@ -10,6 +10,7 @@ knowledgebase_bp = Blueprint('knowledgebases', __name__, url_prefix='/api/v1/kno
 conversation_bp = Blueprint('conversation', __name__, url_prefix='/api/v1/conversation')
 dialog_bp = Blueprint('dialog', __name__, url_prefix='/api/v1/dialog')
 roles_bp = Blueprint('roles', __name__, url_prefix='/api/v1/roles')
+llm_providers_bp = Blueprint('llm_providers', __name__, url_prefix='/api/v1/llm-providers')
 
 # 导入路由
 from .users.routes import *
@@ -20,6 +21,7 @@ from .knowledgebases.routes import *
 from .conversation.routes import *
 from .dialog.routes import *
 from .roles.routes import *
+from .llm_providers.routes import *
 
 
 def register_routes(app):
@@ -32,4 +34,5 @@ def register_routes(app):
     app.register_blueprint(conversation_bp)
     app.register_blueprint(dialog_bp)
     app.register_blueprint(roles_bp)
+    app.register_blueprint(llm_providers_bp)
 
