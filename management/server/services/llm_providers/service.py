@@ -66,26 +66,25 @@ def get_factories():
 
 
 def get_my_llms(tenant_id=None):
-    """获取已配置的模型列表"""
-    if tenant_id is None:
-        tenant_id = SYSTEM_TENANT_ID
-    
+    """获取已配置的模型列表（查询所有租户的模型）"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
+        # 查询所有租户的模型，按 llm_factory, model_type, llm_name 去重
         cursor.execute("""
-            SELECT 
+            SELECT DISTINCT
                 t.llm_factory, 
                 f.logo, 
                 f.tags, 
                 t.model_type, 
                 t.llm_name, 
-                t.used_tokens
+                SUM(t.used_tokens) as used_tokens
             FROM tenant_llm t
             LEFT JOIN llm_factories f ON t.llm_factory = f.name
-            WHERE t.tenant_id = %s AND t.api_key IS NOT NULL AND t.api_key != ''
-        """, (tenant_id,))
+            WHERE t.api_key IS NOT NULL AND t.api_key != ''
+            GROUP BY t.llm_factory, f.logo, f.tags, t.model_type, t.llm_name
+        """)
         
         llms = cursor.fetchall()
         cursor.close()

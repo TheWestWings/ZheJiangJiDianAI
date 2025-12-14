@@ -206,8 +206,9 @@ def send_file_in_mem(data, filename):
     return send_file(f, as_attachment=True, attachment_filename=filename)
 
 
-def get_json_result(code=settings.RetCode.SUCCESS, message='success', data=None):
+def get_json_result(code=settings.RetCode.SUCCESS, message='success', data=None, **kwargs):
     response = {"code": code, "message": message, "data": data}
+    response.update(kwargs)  # 支持额外字段如 default_dialog_id
     return jsonify(response)
 
 

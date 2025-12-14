@@ -407,12 +407,11 @@ export const useSendNextMessage = (controller: AbortController) => {
       }
 
       // 当知识库开关开启时，传递 use_all_kbs: true 让后端使用全部知识库
-      // 当知识库开关关闭时，传递空数组表示不使用知识库
+      // 当知识库开关关闭时，不传递 kb_ids，让后端使用助理配置的默认知识库
       if (enableKnowledge) {
         requestParams.use_all_kbs = true;
-      } else {
-        requestParams.kb_ids = [];
       }
+      // 如果 enableKnowledge 为 false，不传递 kb_ids，后端会使用 dialog.kb_ids
 
       const res = await send(requestParams, controller);
 

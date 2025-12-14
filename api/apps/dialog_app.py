@@ -141,6 +141,7 @@ def get_kb_names(kb_ids):
 @login_required
 def list_dialogs():
     import os
+    import redis
     try:
         # 获取用户自己的助理
         diags = DialogService.query(tenant_id=current_user.id, status=StatusEnum.VALID.value, reverse=True, order_by=DialogService.model.create_time)
@@ -159,7 +160,28 @@ def list_dialogs():
         
         for d in diags:
             d["kb_ids"], d["kb_names"] = get_kb_names(d["kb_ids"])
-        return get_json_result(data=diags)
+        
+        # 获取默认助理ID（从Redis）
+        default_dialog_id = None
+        try:
+            redis_host = os.getenv("REDIS_HOST", "localhost")
+            redis_port = int(os.getenv("REDIS_PORT", 6379))
+            redis_db = int(os.getenv("REDIS_DB", 1))
+            redis_password = os.getenv("REDIS_PASSWORD", "")
+            
+            redis_client = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                db=redis_db,
+                password=redis_password if redis_password else None
+            )
+            result = redis_client.get('system:default_dialog_id')
+            if result:
+                default_dialog_id = result.decode('utf-8')
+        except Exception as redis_err:
+            print(f"[Warning] Failed to get default dialog from Redis: {redis_err}")
+        
+        return get_json_result(data=diags, default_dialog_id=default_dialog_id)
     except Exception as e:
         return server_error_response(e)
 

@@ -1443,24 +1443,23 @@ class KnowledgebaseService:
 
     @classmethod
     def get_tenant_embedding(cls,kb_id):
-        """获取租户的嵌入模型配置
+        """获取所有可用的嵌入模型配置
 
         Returns:
-            dict: {llm_name,llm_factory}租户的嵌入模型配置
+            list: [{llm_name, llm_factory}] 所有嵌入模型配置（去重）
         """
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
 
-            #查找租户的嵌入模型配置
+            # 查找所有嵌入模型配置，不限制租户，按 llm_name 和 llm_factory 去重
             query = """  
-            SELECT tl.llm_name, tl.llm_factory, tl.tenant_id
+            SELECT DISTINCT tl.llm_name, tl.llm_factory
             FROM tenant_llm tl  
-            JOIN knowledgebase kb ON tl.tenant_id = kb.tenant_id  
-            WHERE kb.id = %s AND tl.model_type = 'embedding'  
-            ORDER BY tl.llm_factory DESC  
+            WHERE tl.model_type = 'embedding'  
+            ORDER BY tl.llm_factory DESC, tl.llm_name ASC
             """
-            cursor.execute(query,(kb_id,))
+            cursor.execute(query)
             results = cursor.fetchall()
             
             if results:
@@ -1468,12 +1467,12 @@ class KnowledgebaseService:
                     if result["llm_name"] and "__" in result["llm_name"]:
                         result["llm_name"] = result["llm_name"].split("__")[0]
             else:
-                return {"error": "获取租户嵌入模型配置错误: 未找到相关配置"}
+                return []
             return results
             
         except Exception as e:
-            print(f"获取租户嵌入模型配置错误: {e}")
-            return {"error": f"获取租户嵌入模型配置错误: {str(e)}"}
+            print(f"获取嵌入模型配置错误: {e}")
+            return {"error": f"获取嵌入模型配置错误: {str(e)}"}
         finally:
             if cursor:
                     cursor.close()

@@ -103,9 +103,16 @@ export const useFetchNextDialogList = () => {
 
       if (data.code === 0) {
         const list: IDialog[] = data.data;
+        const defaultDialogId = data.default_dialog_id; // 从后台管理设置的默认助理
+
         if (list.length > 0) {
           if (list.every((x) => x.id !== dialogId)) {
-            handleClickDialog(data.data[0].id);
+            // 优先使用后台设置的默认助理
+            if (defaultDialogId && list.some((x) => x.id === defaultDialogId)) {
+              handleClickDialog(defaultDialogId);
+            } else {
+              handleClickDialog(list[0].id);
+            }
           }
         } else {
           history.push('/chat');

@@ -172,6 +172,24 @@ export const constantRoutes: RouteRecordRaw[] = [
         ]
     },
     {
+        path: "/dialog-management",
+        component: Layouts,
+        redirect: "/dialog-management/index",
+        children: [
+            {
+                path: "index",
+                component: () => import("@/pages/dialog-management/index.vue"),
+                name: "DialogManagement",
+                meta: {
+                    title: "助理管理",
+                    elIcon: "ChatDotRound",
+                    affix: false,
+                    keepAlive: true
+                }
+            }
+        ]
+    },
+    {
         path: "/role",
         component: Layouts,
         redirect: "/role/index",
