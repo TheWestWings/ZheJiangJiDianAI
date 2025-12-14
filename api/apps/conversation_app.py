@@ -351,6 +351,14 @@ def completion():
         e, dia = DialogService.get_by_id(conv.dialog_id)
         if not e:
             return get_data_error_result(message="Dialog not found!")
+        
+        # 处理 use_all_kbs 参数：当为 true 时，获取用户所有可用的知识库
+        if req.get("use_all_kbs"):
+            all_kbs = KnowledgebaseService.get_list(current_user.id, 1, 1000, "create_time", True, None, None)
+            kb_ids = [kb["id"] for kb in all_kbs]
+            req["kb_ids"] = kb_ids
+            del req["use_all_kbs"]
+        
         del req["conversation_id"]
         del req["messages"]
 

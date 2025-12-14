@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 // 存储 key
 const STORAGE_KEY_MODEL = 'chat_selected_model';
 const STORAGE_KEY_KBS = 'chat_selected_kbs';
+const STORAGE_KEY_ENABLE_KB = 'chat_enable_knowledge';
 
 // 模型类型
 export interface AvailableModel {
@@ -87,6 +88,15 @@ export const useChatSelections = () => {
     return [];
   });
 
+  // 知识库启用开关状态
+  const [enableKnowledge, setEnableKnowledge] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEY_ENABLE_KB);
+      return stored === 'true';
+    }
+    return false;
+  });
+
   // 保存模型选择到 localStorage
   const handleSelectModel = useCallback((modelName: string) => {
     setSelectedModel(modelName);
@@ -103,10 +113,20 @@ export const useChatSelections = () => {
     }
   }, []);
 
+  // 保存知识库启用状态到 localStorage
+  const handleEnableKnowledge = useCallback((enabled: boolean) => {
+    setEnableKnowledge(enabled);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_ENABLE_KB, String(enabled));
+    }
+  }, []);
+
   return {
     selectedModel,
     selectedKbs,
+    enableKnowledge,
     setSelectedModel: handleSelectModel,
     setSelectedKbs: handleSelectKbs,
+    setEnableKnowledge: handleEnableKnowledge,
   };
 };

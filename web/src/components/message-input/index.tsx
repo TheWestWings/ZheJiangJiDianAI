@@ -32,6 +32,7 @@ import {
   Select,
   Space,
   Spin,
+  Switch,
   Tooltip,
   Typography,
   Upload,
@@ -139,8 +140,14 @@ const MessageInput = ({
   // 模型和知识库选择
   const { models } = useFetchAvailableModels();
   const { knowledgebases } = useFetchAvailableKnowledgebases();
-  const { selectedModel, selectedKbs, setSelectedModel, setSelectedKbs } =
-    useChatSelections();
+  const {
+    selectedModel,
+    selectedKbs,
+    enableKnowledge,
+    setSelectedModel,
+    setSelectedKbs,
+    setEnableKnowledge,
+  } = useChatSelections();
 
   // 当模型列表变化时，验证并设置默认模型
   useEffect(() => {
@@ -473,23 +480,23 @@ const MessageInput = ({
               />
             </Space>
           </Tooltip>
-          <Tooltip title="选择知识库">
+          <Tooltip title="启用知识库后将使用全部知识库">
             <Space size={4}>
-              <DatabaseOutlined style={{ color: '#666' }} />
-              <Select
-                mode="multiple"
-                placeholder="知识库"
-                style={{ minWidth: 120, maxWidth: 250 }}
-                value={selectedKbs}
-                onChange={setSelectedKbs}
-                options={knowledgebases?.map((kb) => ({
-                  value: kb.id,
-                  label: kb.name,
-                }))}
-                allowClear
+              <DatabaseOutlined
+                style={{ color: enableKnowledge ? '#1890ff' : '#666' }}
+              />
+              <span
+                style={{
+                  color: enableKnowledge ? '#1890ff' : '#666',
+                  fontSize: 12,
+                }}
+              >
+                知识库
+              </span>
+              <Switch
                 size="small"
-                maxTagCount={1}
-                variant="borderless"
+                checked={enableKnowledge}
+                onChange={setEnableKnowledge}
               />
             </Space>
           </Tooltip>

@@ -20,6 +20,7 @@ import NewDocumentLink from '../new-document-link';
 import { useTheme } from '../theme-provider';
 import { AssistantGroupButton, UserGroupButton } from './group-button';
 import styles from './index.less';
+import ReferenceModal from './reference-modal';
 
 const { Text } = Typography;
 
@@ -60,11 +61,20 @@ const MessageItem = ({
   const { data: documentThumbnails, setDocumentIds: setIds } =
     useFetchDocumentThumbnailsByIds();
   const { visible, hideModal, showModal } = useSetModalState();
+  const {
+    visible: referenceVisible,
+    hideModal: hideReferenceModal,
+    showModal: showReferenceModal,
+  } = useSetModalState();
   const [clickedDocumentId, setClickedDocumentId] = useState('');
 
   const referenceDocumentList = useMemo(() => {
     return reference?.doc_aggs ?? [];
   }, [reference?.doc_aggs]);
+
+  const hasReference = useMemo(() => {
+    return reference?.chunks && reference.chunks.length > 0;
+  }, [reference?.chunks]);
 
   const handleUserDocumentClick = useCallback(
     (id: string) => () => {
@@ -127,7 +137,6 @@ const MessageItem = ({
                     showLikeButton={showLikeButton}
                     audioBinary={item.audio_binary}
                     showLoudspeaker={showLoudspeaker}
-                    reference={reference}
                   ></AssistantGroupButton>
                 )
               ) : (
@@ -187,6 +196,24 @@ const MessageItem = ({
                 }}
               />
             )}
+            {/* 引用片段按钮和 AI 提示 */}
+            {isAssistant && index !== 0 && (
+              <Flex gap={8} align="center" style={{ marginTop: 4 }}>
+                {hasReference && (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={showReferenceModal}
+                    style={{ padding: 0, fontSize: 12, color: '#1890ff' }}
+                  >
+                    引用片段
+                  </Button>
+                )}
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  AI回复仅供参考
+                </Text>
+              </Flex>
+            )}
             {isUser && documentList.length > 0 && (
               <List
                 bordered
@@ -237,6 +264,13 @@ const MessageItem = ({
           hideModal={hideModal}
           documentId={clickedDocumentId}
         ></IndentedTreeModal>
+      )}
+      {referenceVisible && (
+        <ReferenceModal
+          visible={referenceVisible}
+          hideModal={hideReferenceModal}
+          reference={reference}
+        ></ReferenceModal>
       )}
     </div>
   );

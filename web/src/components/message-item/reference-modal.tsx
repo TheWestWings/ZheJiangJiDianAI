@@ -19,7 +19,7 @@ const ReferenceModal = ({ visible, hideModal, reference }: IProps) => {
       title={
         <Space>
           <DatabaseOutlined />
-          <span>知识库详细信息</span>
+          <span>引用片段</span>
         </Space>
       }
       open={visible}

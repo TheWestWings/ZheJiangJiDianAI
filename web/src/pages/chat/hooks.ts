@@ -390,29 +390,31 @@ export const useSendNextMessage = (controller: AbortController) => {
       currentConversationId?: string;
       messages?: Message[];
     }) => {
-      // 从 localStorage 获取用户选择的模型和知识库
+      // 从 localStorage 获取用户选择的模型和知识库启用状态
       const selectedModel = localStorage.getItem('chat_selected_model') || '';
-      const selectedKbsStr = localStorage.getItem('chat_selected_kbs');
-      let selectedKbs: string[] = [];
-      if (selectedKbsStr) {
-        try {
-          selectedKbs = JSON.parse(selectedKbsStr);
-        } catch {
-          selectedKbs = [];
-        }
+      const enableKnowledge =
+        localStorage.getItem('chat_enable_knowledge') === 'true';
+
+      // 构建请求参数
+      const requestParams: any = {
+        conversation_id: currentConversationId ?? conversationId,
+        messages: [...(messages ?? derivedMessages ?? []), message],
+      };
+
+      // 设置模型
+      if (selectedModel) {
+        requestParams.llm_id = selectedModel;
       }
 
-      const res = await send(
-        {
-          conversation_id: currentConversationId ?? conversationId,
-          messages: [...(messages ?? derivedMessages ?? []), message],
-          // 传递动态选择的模型和知识库
-          // 始终发送 kb_ids，空数组表示不使用知识库
-          ...(selectedModel && { llm_id: selectedModel }),
-          kb_ids: selectedKbs,
-        },
-        controller,
-      );
+      // 当知识库开关开启时，传递 use_all_kbs: true 让后端使用全部知识库
+      // 当知识库开关关闭时，传递空数组表示不使用知识库
+      if (enableKnowledge) {
+        requestParams.use_all_kbs = true;
+      } else {
+        requestParams.kb_ids = [];
+      }
+
+      const res = await send(requestParams, controller);
 
       if (res && (res?.response.status !== 200 || res?.data?.code !== 0)) {
         // cancel loading
