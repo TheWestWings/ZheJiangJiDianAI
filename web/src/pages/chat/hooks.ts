@@ -25,6 +25,7 @@ import {
 import { IConversation, IDialog, Message } from '@/interfaces/database/chat';
 import { getFileExtension } from '@/utils';
 import api from '@/utils/api';
+import { getConversationId } from '@/utils/chat';
 import { useMutationState } from '@tanstack/react-query';
 import { get } from 'lodash';
 import trim from 'lodash/trim';
@@ -81,17 +82,7 @@ export const useSetNewConversationRouteParams = () => {
     [newQueryParameters, setSearchParams],
   );
 
-  // 清除 conversationId，只保留 dialogId，跳转到初始聊天界面
-  const clearConversationId = useCallback(() => {
-    const dialogId = newQueryParameters.get(ChatSearchParams.DialogId);
-    const cleanParams = new URLSearchParams();
-    if (dialogId) {
-      cleanParams.set(ChatSearchParams.DialogId, dialogId);
-    }
-    setSearchParams(cleanParams);
-  }, [newQueryParameters, setSearchParams]);
-
-  return { setNewConversationRouteParams, clearConversationId };
+  return { setNewConversationRouteParams };
 };
 
 export const useSelectCurrentDialog = () => {
@@ -219,14 +210,34 @@ export const useSelectDerivedConversationList = () => {
   const { data: conversationList, loading } = useFetchNextConversationList();
   const { dialogId } = useGetChatSearchParams();
   const prologue = currentDialog?.prompt_config?.prologue ?? '';
-  const { clearConversationId } = useSetNewConversationRouteParams();
+  const { setNewConversationRouteParams } = useSetNewConversationRouteParams();
 
-  // 新增对话：清除 conversationId，只保留 dialogId，跳转到初始聊天界面
   const addTemporaryConversation = useCallback(() => {
-    if (dialogId) {
-      clearConversationId();
-    }
-  }, [dialogId, clearConversationId]);
+    const conversationId = getConversationId();
+    setList((pre) => {
+      if (dialogId) {
+        setNewConversationRouteParams(conversationId, 'true');
+        const nextList = [
+          {
+            id: conversationId,
+            name: t('newConversation'),
+            dialog_id: dialogId,
+            is_new: true,
+            message: [
+              {
+                content: prologue,
+                role: MessageType.Assistant,
+              },
+            ],
+          } as any,
+          ...conversationList,
+        ];
+        return nextList;
+      }
+
+      return pre;
+    });
+  }, [conversationList, dialogId, prologue, t, setNewConversationRouteParams]);
 
   // When you first enter the page, select the top conversation card
 
