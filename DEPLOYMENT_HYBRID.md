@@ -1,6 +1,8 @@
 # RAGFlow-Plus 混合部署指南（中间件 Docker + 源码部署）
 
-本文档介绍如何使用 **Docker 部署中间件**（MySQL、Redis、MinIO、Elasticsearch）+ **源码部署应用服务**（前端、后端）的混合部署方式。
+本文档介绍如何在 **OpenEuler** 操作系统上使用 **Docker 部署中间件**（MySQL、Redis、MinIO、Elasticsearch）+ **源码部署应用服务**（前端、后端）的混合部署方式。
+
+> 📌 本文档针对国内环境优化，已配置国内镜像源加速。
 
 ---
 
@@ -14,6 +16,7 @@
 - [6. 部署管理后台（源码）](#6-部署管理后台源码)
 - [7. Nginx 配置](#7-nginx-配置)
 - [8. 服务管理](#8-服务管理)
+- [9. OpenEuler 特有注意事项](#9-openeuler-特有注意事项)
 
 ---
 
@@ -59,34 +62,101 @@
 
 | 项目 | 要求 |
 |------|------|
-| 操作系统 | Ubuntu 20.04+ / CentOS 7+ |
+| 操作系统 | OpenEuler 22.03 LTS+ |
 | CPU | 4 核+ |
 | 内存 | 16 GB+ |
 | 磁盘 | 100 GB+ (SSD) |
 
-### 2.2 安装 Docker
+### 2.2 配置 OpenEuler 软件源
 
 ```bash
-# 更新系统包
-sudo apt-get update
+# 备份原有源
+sudo cp /etc/yum.repos.d/openEuler.repo /etc/yum.repos.d/openEuler.repo.bak
+
+# 使用华为云镜像源（推荐）
+sudo sed -i 's/repo.openeuler.org/repo.huaweicloud.com\/openeuler/g' /etc/yum.repos.d/openEuler.repo
+
+# 或使用阿里云镜像源
+# sudo sed -i 's/repo.openeuler.org/mirrors.aliyun.com\/openeuler/g' /etc/yum.repos.d/openEuler.repo
+
+# 更新软件包索引
+sudo dnf makecache
+
+# 更新系统
+sudo dnf update -y
+```
+
+### 2.3 安装 Docker
+
+```bash
+# 安装依赖
+sudo dnf install -y dnf-plugins-core
 
 # 安装 Docker
-sudo apt-get install -y docker.io docker-compose-plugin
+sudo dnf install -y docker
+
+# 配置 Docker 镜像加速器（国内加速）
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": [
+    "https://docker.1ms.run",
+    "https://docker.xuanyuan.me"
+  ],
+  "storage-driver": "overlay2",
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "3"
+  }
+}
+EOF
 
 # 启动 Docker 服务
+sudo systemctl daemon-reload
 sudo systemctl start docker
 sudo systemctl enable docker
 
+# 将当前用户添加到 docker 组（避免每次使用 sudo）
+sudo usermod -aG docker $USER
+newgrp docker
+
 # 验证 Docker 安装
 docker --version
+```
+
+### 2.4 安装 Docker Compose
+
+```bash
+# 使用国内镜像下载 Docker Compose
+sudo curl -L "https://ghfast.top/https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+# 如果上面的地址失效，可以尝试以下备用地址：
+# sudo curl -L "https://mirror.ghproxy.com/https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+# 添加执行权限
+sudo chmod +x /usr/local/bin/docker-compose
+
+# 创建软链接
+sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+# 验证 Docker Compose 安装
+docker-compose --version
+
+# 或使用 docker compose 插件方式
+mkdir -p ~/.docker/cli-plugins/
+curl -SL "https://ghfast.top/https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+
+# 验证
 docker compose version
 ```
 
-### 2.3 安装 Conda
+### 2.5 安装 Conda
 
 ```bash
-# 下载 Miniconda 安装脚本
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+# 使用清华镜像下载 Miniconda
+wget https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
 
 # 运行安装脚本
 bash miniconda.sh -b -p $HOME/miniconda3
@@ -97,33 +167,90 @@ $HOME/miniconda3/bin/conda init bash
 # 重新加载 shell 配置
 source ~/.bashrc
 
+# 配置 Conda 使用清华镜像源
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/
+conda config --set show_channel_urls yes
+
 # 验证 Conda 安装
 conda --version
 ```
 
-### 2.4 安装 Node.js 和 pnpm
+### 2.6 安装 Node.js 和 pnpm
 
 ```bash
-# 使用 NodeSource 安装 Node.js 18
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+# 方法一：使用 nvm 安装（推荐，可管理多版本）
+# 使用 gitee 镜像安装 nvm
+export NVM_SOURCE=https://gitee.com/mirrors/nvm.git
+curl -o- https://gitee.com/mirrors/nvm/raw/master/install.sh | bash
+
+# 重新加载配置
+source ~/.bashrc
+
+# 配置 nvm 使用国内镜像
+export NVM_NODEJS_ORG_MIRROR=https://npmmirror.com/mirrors/node
+
+# 将镜像配置添加到 bashrc
+echo 'export NVM_NODEJS_ORG_MIRROR=https://npmmirror.com/mirrors/node' >> ~/.bashrc
+source ~/.bashrc
+
+# 安装 Node.js 18
+nvm install 18
+nvm use 18
+nvm alias default 18
 
 # 验证 Node.js 安装
 node --version
 npm --version
 
+# 配置 npm 使用淘宝镜像
+npm config set registry https://registry.npmmirror.com
+
 # 安装 pnpm
 npm install -g pnpm
+
+# 配置 pnpm 使用淘宝镜像
+pnpm config set registry https://registry.npmmirror.com
 
 # 验证 pnpm 安装
 pnpm --version
 ```
 
-### 2.5 安装 Nginx
+```bash
+# 方法二：使用 dnf 安装（版本可能较旧）
+sudo dnf install -y nodejs npm
+
+# 配置 npm 镜像
+npm config set registry https://registry.npmmirror.com
+npm install -g pnpm
+pnpm config set registry https://registry.npmmirror.com
+```
+
+### 2.7 配置 pip 镜像
+
+```bash
+# 创建 pip 配置目录
+mkdir -p ~/.pip
+
+# 配置清华镜像源
+cat > ~/.pip/pip.conf << 'EOF'
+[global]
+index-url = https://pypi.tuna.tsinghua.edu.cn/simple
+trusted-host = pypi.tuna.tsinghua.edu.cn
+EOF
+
+# 或使用阿里云镜像
+# [global]
+# index-url = https://mirrors.aliyun.com/pypi/simple/
+# trusted-host = mirrors.aliyun.com
+```
+
+### 2.8 安装 Nginx
 
 ```bash
 # 安装 Nginx
-sudo apt-get install -y nginx
+sudo dnf install -y nginx
 
 # 启动 Nginx 服务
 sudo systemctl start nginx
@@ -131,6 +258,32 @@ sudo systemctl enable nginx
 
 # 验证 Nginx 安装
 nginx -v
+
+# 配置防火墙（如果启用了 firewalld）
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-port=8888/tcp
+sudo firewall-cmd --permanent --add-port=9380/tcp
+sudo firewall-cmd --reload
+```
+
+### 2.9 安装其他工具
+
+```bash
+# 安装 Git
+sudo dnf install -y git
+
+# 配置 Git 使用代理（可选）
+# git config --global url."https://ghfast.top/https://github.com/".insteadOf "https://github.com/"
+
+# 安装 MySQL 客户端（用于测试连接）
+sudo dnf install -y mysql
+
+# 安装 Redis 客户端（可选）
+sudo dnf install -y redis
+
+# 安装常用工具
+sudo dnf install -y curl wget vim unzip
 ```
 
 ---
@@ -140,8 +293,11 @@ nginx -v
 ### 3.1 克隆项目代码
 
 ```bash
-# 克隆项目
-git clone https://github.com/zstar1003/ragflow-plus.git
+# 使用 GitHub 代理克隆（国内加速）
+git clone https://ghfast.top/https://github.com/zstar1003/ragflow-plus.git
+
+# 或使用 Gitee 镜像（如果有）
+# git clone https://gitee.com/zstar1003/ragflow-plus.git
 
 # 进入项目目录
 cd ragflow-plus
@@ -239,7 +395,10 @@ conda activate ragflow
 # 进入项目根目录
 cd /path/to/ragflow-plus
 
-# 使用清华镜像源安装依赖
+# 使用清华镜像源安装依赖（已在 pip.conf 中配置，可省略 -i 参数）
+pip install -r requirements.txt
+
+# 或显式指定镜像源
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 验证关键包安装
@@ -343,7 +502,7 @@ sudo systemctl status ragflow-api
 # 进入前端目录
 cd /path/to/ragflow-plus/web
 
-# 安装依赖
+# 安装依赖（使用已配置的淘宝镜像）
 pnpm install
 ```
 
@@ -400,7 +559,7 @@ conda activate ragflow-management
 cd /path/to/ragflow-plus/management/server
 
 # 安装依赖
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install -r requirements.txt
 ```
 
 ### 6.3 配置管理后台后端
@@ -474,7 +633,7 @@ sudo systemctl status ragflow-management
 
 ### 7.1 主站配置
 
-创建 `/etc/nginx/sites-available/ragflow`：
+创建 `/etc/nginx/conf.d/ragflow.conf`：
 
 ```nginx
 # 前台 Web
@@ -540,15 +699,14 @@ server {
 ### 7.2 启用配置
 
 ```bash
-# 创建符号链接
-sudo ln -s /etc/nginx/sites-available/ragflow /etc/nginx/sites-enabled/
-
 # 测试 Nginx 配置
 sudo nginx -t
 
 # 重新加载 Nginx
 sudo systemctl reload nginx
 ```
+
+> 注意：OpenEuler 的 Nginx 配置文件目录结构与 Ubuntu 不同，配置文件直接放在 `/etc/nginx/conf.d/` 目录下即可。
 
 ---
 
@@ -671,6 +829,92 @@ chmod +x start_dev.sh
 # 运行脚本
 ./start_dev.sh
 ```
+
+---
+
+## 9. OpenEuler 特有注意事项
+
+### 9.1 SELinux 配置
+
+OpenEuler 默认启用 SELinux，可能会影响服务运行：
+
+```bash
+# 查看 SELinux 状态
+getenforce
+
+# 临时关闭 SELinux（测试用）
+sudo setenforce 0
+
+# 永久关闭 SELinux（不推荐生产环境）
+sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
+# 需要重启生效
+
+# 或配置 SELinux 策略允许服务（推荐）
+sudo setsebool -P httpd_can_network_connect 1
+sudo setsebool -P httpd_can_network_relay 1
+```
+
+### 9.2 防火墙配置
+
+```bash
+# 查看防火墙状态
+sudo firewall-cmd --state
+
+# 开放所需端口
+sudo firewall-cmd --permanent --add-port=80/tcp
+sudo firewall-cmd --permanent --add-port=443/tcp
+sudo firewall-cmd --permanent --add-port=8888/tcp
+sudo firewall-cmd --permanent --add-port=9380/tcp
+sudo firewall-cmd --permanent --add-port=5173/tcp
+sudo firewall-cmd --permanent --add-port=5174/tcp
+sudo firewall-cmd --permanent --add-port=5000/tcp
+
+# 中间件端口（如需外部访问）
+sudo firewall-cmd --permanent --add-port=5455/tcp   # MySQL
+sudo firewall-cmd --permanent --add-port=6379/tcp   # Redis
+sudo firewall-cmd --permanent --add-port=9000/tcp   # MinIO
+sudo firewall-cmd --permanent --add-port=9001/tcp   # MinIO Console
+sudo firewall-cmd --permanent --add-port=1200/tcp   # Elasticsearch
+
+# 重新加载防火墙
+sudo firewall-cmd --reload
+
+# 查看已开放端口
+sudo firewall-cmd --list-all
+```
+
+### 9.3 系统资源限制
+
+```bash
+# 查看当前限制
+ulimit -a
+
+# 增加文件描述符限制
+sudo bash -c 'cat >> /etc/security/limits.conf << EOF
+* soft nofile 65536
+* hard nofile 65536
+* soft nproc 65536
+* hard nproc 65536
+EOF'
+
+# 对于 systemd 服务，在 service 文件中添加
+# [Service]
+# LimitNOFILE=65536
+```
+
+---
+
+## 附录：国内镜像源汇总
+
+| 服务 | 镜像源 | 配置方式 |
+|------|--------|----------|
+| OpenEuler 软件源 | 华为云 `repo.huaweicloud.com/openeuler` | `/etc/yum.repos.d/openEuler.repo` |
+| Docker 镜像 | `docker.1ms.run` / `docker.xuanyuan.me` | `/etc/docker/daemon.json` |
+| Conda | 清华 `mirrors.tuna.tsinghua.edu.cn/anaconda` | `~/.condarc` |
+| pip | 清华 `pypi.tuna.tsinghua.edu.cn/simple` | `~/.pip/pip.conf` |
+| npm/pnpm | 淘宝 `registry.npmmirror.com` | `npm config` / `pnpm config` |
+| Node.js (nvm) | 淘宝 `npmmirror.com/mirrors/node` | 环境变量 `NVM_NODEJS_ORG_MIRROR` |
+| GitHub 文件 | `ghfast.top` / `mirror.ghproxy.com` | Git clone URL 前缀 |
 
 ---
 

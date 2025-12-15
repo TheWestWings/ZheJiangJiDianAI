@@ -1053,6 +1053,7 @@ class KnowledgebaseService:
         try:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)  # 使用字典游标方便访问列名
+            
             # 1. 找到最早创建的用户ID
             query_earliest_user = """
             SELECT id FROM user
@@ -1061,42 +1062,57 @@ class KnowledgebaseService:
             """
             cursor.execute(query_earliest_user)
             earliest_user = cursor.fetchone()
-            earliest_user_id = earliest_user["id"]
+            earliest_user_id = earliest_user["id"] if earliest_user else None
 
-            # 2. 根据最早用户ID查询 tenant_llm 表中 model_type 为 embedding 的配置
-            query_embedding_config = """
-                SELECT llm_name, api_key, api_base
-                FROM tenant_llm
-                WHERE tenant_id = %s AND model_type = 'embedding'
-                ORDER BY create_time DESC
-            """
-            cursor.execute(query_embedding_config, (earliest_user_id,))
-            config = cursor.fetchall()
-
-            # 3. 根据kb_id查询knowledgebase这张表，得到embd_id
+            # 2. 根据kb_id查询knowledgebase这张表，得到embd_id
             kb_query = "SELECT embd_id FROM knowledgebase WHERE id = %s"
             cursor.execute(kb_query, (kb_id,))
-            kb_embd_info= cursor.fetchone()
+            kb_embd_info = cursor.fetchone()
+            
+            if not kb_embd_info or not kb_embd_info.get('embd_id'):
+                return {"llm_name": "", "api_key": "", "api_base": ""}
+            
+            target_embd_id = kb_embd_info['embd_id']
+            
+            # 3. 查询 tenant_llm 表中 model_type 为 embedding 的配置
+            # 同时查找用户配置和 system_admin 配置
+            query_embedding_config = """
+                SELECT llm_name, api_key, api_base, llm_factory
+                FROM tenant_llm
+                WHERE model_type = 'embedding' AND (tenant_id = %s OR tenant_id = 'system_admin')
+                ORDER BY 
+                    CASE WHEN tenant_id = %s THEN 0 ELSE 1 END,  -- 优先用户配置
+                    create_time DESC
+            """
+            cursor.execute(query_embedding_config, (earliest_user_id, earliest_user_id))
+            config = cursor.fetchall()
 
-            # 4. 从获取的系统及配置找到知识库的 Embedding 配置
+            # 4. 从获取的配置中找到与知识库 embd_id 匹配的配置
             if config:
                 for row in config:
-                    if row["llm_name"] and "___" in row["llm_name"]:
-                        row["llm_name"] = row["llm_name"].split("___")[0]
-                    if row["llm_name"]==kb_embd_info['embd_id']:
-                        llm_name = row.get("llm_name", "")
+                    llm_name = row.get("llm_name", "")
+                    # 处理模型名称中的 ___ 分隔符
+                    if llm_name and "___" in llm_name:
+                        llm_name = llm_name.split("___")[0]
+                    
+                    if llm_name == target_embd_id:
                         api_key = row.get("api_key", "")
                         api_base = row.get("api_base", "")
 
-                        # # 对硅基流动平台进行特异性处理
-                        # if llm_name == "netease-youdao/bce-embedding-base_v1":
-                        #     llm_name = "BAAI/bge-m3"
-
-                        # 如果 API 基础地址为空字符串，设置为硅基流动嵌入模型的 API 地址
-                        if api_base == "":
-                            api_base = "https://api.siliconflow.cn/v1/embeddings"
-
+                        # 如果 API 基础地址为空字符串，根据 llm_factory 设置默认值
+                        if not api_base or api_base.strip() == "":
+                            llm_factory = row.get("llm_factory", "")
+                            if llm_factory == "SILICONFLOW":
+                                api_base = "https://api.siliconflow.cn/v1"
+                            else:
+                                api_base = "https://api.siliconflow.cn/v1"  # 默认使用硅基流动
+                        
+                        print(f"[INFO] 找到 embedding 配置: llm_name={llm_name}, api_base={api_base}, api_key={api_key[:10]}...")
                         return {"llm_name": llm_name, "api_key": api_key, "api_base": api_base}
+            
+            # 5. 如果没有找到匹配的配置，返回空配置
+            print(f"[WARNING] 未找到与知识库 embd_id '{target_embd_id}' 匹配的 embedding 配置")
+            return {"llm_name": target_embd_id, "api_key": "", "api_base": ""}
 
         except Exception as e:
             print(f"获取知识库 Embedding 配置时出错: {e}")

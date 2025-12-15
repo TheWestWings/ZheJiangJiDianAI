@@ -134,11 +134,14 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
     # if embedding_model_name == "netease-youdao/bce-embedding-base_v1":
     #     embedding_model_name = "BAAI/bge-m3"
 
-    embedding_api_base = embedding_config.get("api_base") if embedding_config and embedding_config.get("api_base") else "http://localhost:11434"  # 默认基础 URL
-
-    # 如果 API 基础地址为空字符串，设置为硅基流动的 API 地址
-    if embedding_api_base == "":
-        embedding_api_base = "https://api.siliconflow.cn/v1/embeddings"
+    # 获取 embedding API 基础地址，如果为空则使用硅基流动的 API 地址
+    embedding_api_base = None
+    if embedding_config:
+        embedding_api_base = embedding_config.get("api_base")
+    
+    # 如果 API 基础地址为空或空字符串，设置为硅基流动的 API 地址
+    if not embedding_api_base or embedding_api_base.strip() == "":
+        embedding_api_base = "https://api.siliconflow.cn/v1"
         logger.info(f"[Parser-INFO] API 基础地址为空，已设置为硅基流动的 API 地址: {embedding_api_base}")
 
     embedding_api_key = embedding_config.get("api_key") if embedding_config else None  # 可能为 None 或空字符串
@@ -489,6 +492,13 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                     headers = {"Content-Type": "application/json"}
                     if embedding_api_key:
                         headers["Authorization"] = f"Bearer {embedding_api_key}"
+
+                    # 截断过长的文本，避免 413 错误
+                    # bge-large-zh-v1.5 最大支持 512 tokens，约 1500 个中文字符
+                    max_content_length = 1500
+                    if len(content) > max_content_length:
+                        content = content[:max_content_length]
+                        logger.info(f"[Parser-INFO] 文本过长，已截断至 {max_content_length} 个字符")
 
                     if is_ollama:
                         embedding_resp = requests.post(
