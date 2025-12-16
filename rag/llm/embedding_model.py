@@ -671,6 +671,9 @@ class SILICONFLOWEmbed(Base):
     ):
         if not base_url:
             base_url = "https://api.siliconflow.cn/v1/embeddings"
+        # 确保 URL 以 /embeddings 结尾
+        if not base_url.endswith("/embeddings"):
+            base_url = base_url.rstrip("/") + "/embeddings"
         self.headers = {
             "accept": "application/json",
             "content-type": "application/json",
@@ -703,9 +706,17 @@ class SILICONFLOWEmbed(Base):
             "input": text,
             "encoding_format": "float",
         }
-        res = requests.post(self.base_url, json=payload, headers=self.headers).json()
+        try:
+            response = requests.post(self.base_url, json=payload, headers=self.headers)
+            if response.status_code != 200:
+                raise ValueError(f"SILICONFLOWEmbed API error: status={response.status_code}, response={response.text}")
+            if not response.text:
+                raise ValueError(f"SILICONFLOWEmbed API returned empty response, status={response.status_code}")
+            res = response.json()
+        except requests.exceptions.JSONDecodeError as e:
+            raise ValueError(f"SILICONFLOWEmbed API returned invalid JSON: {response.text[:500] if response.text else 'empty'}")
         if "data" not in res or not isinstance(res["data"], list) or len(res["data"])!= 1:
-            raise ValueError(f"SILICONFLOWEmbed.encode_queries got invalid response from {self.base_url}")
+            raise ValueError(f"SILICONFLOWEmbed.encode_queries got invalid response from {self.base_url}: {res}")
         return np.array(res["data"][0]["embedding"]), self.total_token_count(res)
 
 
