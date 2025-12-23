@@ -364,6 +364,13 @@ curl -u elastic:infini_rag_flow http://localhost:1200
 # 浏览器打开 http://your_ip:9001
 # 用户名: rag_flow, 密码: infini_rag_flow
 ```
+## models
+```bash
+wget https://www.modelscope.cn/models/opendatalab/PDF-Extract-Kit-1.0/resolve/master/models/OCR/paddleocr_torch/ch_PP-OCRv5_rec_infer.pth
+
+# 安装liberOffice
+sudo dnf install -y libreoffice
+```
 
 ---
 
@@ -376,7 +383,7 @@ curl -u elastic:infini_rag_flow http://localhost:1200
 cd /path/to/ragflow-plus
 
 # 创建名为 ragflow 的 Conda 环境，指定 Python 3.10
-conda create -n ragflow python=3.10 -y
+conda create -n ragflow python=3.12.11 -y
 
 # 激活 Conda 环境
 conda activate ragflow
