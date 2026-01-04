@@ -383,10 +383,10 @@ sudo dnf install -y libreoffice
 cd /path/to/ragflow-plus
 
 # 创建名为 ragflow 的 Conda 环境，指定 Python 3.10
-conda create -n ragflow python=3.12.11 -y
+conda create -n AiHelper python=3.12.11 -y
 
 # 激活 Conda 环境
-conda activate ragflow
+conda activate AiHelper
 
 # 验证 Python 版本
 python --version
@@ -935,3 +935,37 @@ EOF'
 | MinIO | rag_flow | infini_rag_flow |
 
 > ⚠️ **生产环境请务必修改所有默认密码！**
+
+```bash
+cd ~/nltk_data
+
+# punkt (分词器)
+mkdir -p tokenizers && cd tokenizers
+wget https://cdn.jsdelivr.net/gh/nltk/nltk_data@gh-pages/packages/tokenizers/punkt.zip
+unzip punkt.zip && rm punkt.zip
+cd ..
+
+# averaged_perceptron_tagger (词性标注)
+mkdir -p taggers && cd taggers
+wget https://cdn.jsdelivr.net/gh/nltk/nltk_data@gh-pages/packages/taggers/averaged_perceptron_tagger.zip
+unzip averaged_perceptron_tagger.zip && rm averaged_perceptron_tagger.zip
+cd ..
+
+# wordnet (词汇数据库)
+mkdir -p corpora && cd corpora
+wget https://cdn.jsdelivr.net/gh/nltk/nltk_data@gh-pages/packages/corpora/wordnet.zip
+unzip wordnet.zip && rm wordnet.zip
+cd ..
+
+# stopwords (停用词)
+mkdir -p corpora && cd corpora
+wget https://cdn.jsdelivr.net/gh/nltk/nltk_data@gh-pages/packages/corpora/stopwords.zip
+unzip stopwords.zip && rm stopwords.zip
+cd ..
+
+# omw-1.4 (Open Multilingual Wordnet)
+mkdir -p corpora && cd corpora
+wget https://cdn.jsdelivr.net/gh/nltk/nltk_data@gh-pages/packages/corpora/omw-1.4.zip
+unzip omw-1.4.zip && rm omw-1.4.zip
+cd ..
+```

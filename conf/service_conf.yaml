@@ -58,17 +58,15 @@ redis:
 #   factory: 'Tongyi-Qianwen'
 #   api_key: 'sk-xxxxxxxxxxxxx'
 #   base_url: ''
-# oauth:
-#   github:
-#     client_id: xxxxxxxxxxxxxxxxxxxxxxxxx
-#     secret_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#     url: https://github.com/login/oauth/access_token
-#   feishu:
-#     app_id: cli_xxxxxxxxxxxxxxxxxxx
-#     app_secret: xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#     app_access_token_url: https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal
-#     user_access_token_url: https://open.feishu.cn/open-apis/authen/v1/oidc/access_token
-#     grant_type: 'authorization_code'
+# ZIME CAS 统一身份认证配置
+cas:
+  client_id: 'YOUR_APP_KEY'           # 向学校信息中心申请的 app_key
+  client_secret: 'YOUR_APP_SECRET'    # 向学校信息中心申请的 app_secret
+  authorize_url: 'https://account.zime.edu.cn/cas/oauth2.0/authorize'
+  access_token_url: 'https://account.zime.edu.cn/cas/oauth2.0/accessToken'
+  profile_url: 'https://account.zime.edu.cn/cas/oauth2.0/profile'
+  redirect_uri: 'https://your-domain.com/api/user/cas_callback'  # 修改为实际部署域名
+
 # authentication:
 #   client:
 #     switch: false

@@ -42,7 +42,7 @@ const routes = [
     layout: false,
     wrappers: ['@/wrappers/auth'],
     routes: [
-      { path: '/', redirect: '/login' },
+      { path: '/', redirect: '/chat' }, // 默认跳转到聊天页面，登录由 CAS 处理
       {
         path: '/knowledge',
         component: '@/pages/knowledge',

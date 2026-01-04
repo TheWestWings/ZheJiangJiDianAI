@@ -50,8 +50,9 @@ AUTHENTICATION_CONF = None
 # client
 CLIENT_AUTHENTICATION = None
 HTTP_APP_KEY = None
-GITHUB_OAUTH = None
-FEISHU_OAUTH = None
+
+# ZIME CAS 统一身份认证配置
+CAS_CONFIG = None
 
 DOC_ENGINE = None
 docStoreConn = None
@@ -100,15 +101,16 @@ def init_settings():
 
     SECRET_KEY = get_base_config(RAG_FLOW_SERVICE_NAME, {}).get("secret_key", str(date.today()))
 
-    global AUTHENTICATION_CONF, CLIENT_AUTHENTICATION, HTTP_APP_KEY, GITHUB_OAUTH, FEISHU_OAUTH
+    global AUTHENTICATION_CONF, CLIENT_AUTHENTICATION, HTTP_APP_KEY, CAS_CONFIG
     # authentication
     AUTHENTICATION_CONF = get_base_config("authentication", {})
 
     # client
     CLIENT_AUTHENTICATION = AUTHENTICATION_CONF.get("client", {}).get("switch", False)
     HTTP_APP_KEY = AUTHENTICATION_CONF.get("client", {}).get("http_app_key")
-    GITHUB_OAUTH = get_base_config("oauth", {}).get("github")
-    FEISHU_OAUTH = get_base_config("oauth", {}).get("feishu")
+    
+    # ZIME CAS 统一身份认证
+    CAS_CONFIG = get_base_config("cas", {})
 
     global DOC_ENGINE, docStoreConn, retrievaler, kg_retrievaler
     DOC_ENGINE = os.environ.get("DOC_ENGINE", "elasticsearch")

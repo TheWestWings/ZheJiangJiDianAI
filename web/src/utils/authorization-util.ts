@@ -57,7 +57,23 @@ export const getAuthorization = () => {
 
 export default storage;
 
-// Will not jump to the login page
+// ZIME CAS 统一身份认证配置
+const CAS_CONFIG = {
+  authorizeUrl: 'https://account.zime.edu.cn/cas/oauth2.0/authorize',
+  clientId: 'YOUR_APP_KEY', // 需要替换为实际的 app_key
+  redirectUri: window.location.origin + '/api/user/cas_callback',
+};
+
+/**
+ * 跳转到 CAS 统一身份认证登录页面
+ * 未登录用户访问受限资源时会自动调用此函数
+ */
 export function redirectToLogin() {
-  window.location.href = location.origin + `/login`;
+  const casLoginUrl =
+    `${CAS_CONFIG.authorizeUrl}?` +
+    `response_type=code&` +
+    `client_id=${CAS_CONFIG.clientId}&` +
+    `redirect_uri=${encodeURIComponent(CAS_CONFIG.redirectUri)}`;
+
+  window.location.href = casLoginUrl;
 }

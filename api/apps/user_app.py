@@ -44,136 +44,137 @@ from api.db.services.file_service import FileService
 from api.utils.api_utils import get_json_result, construct_response
 
 
-@manager.route("/login", methods=["POST", "GET"])  # noqa: F821
+@manager.route("/login", methods=["GET"])  # noqa: F821
 def login():
     """
-    User login endpoint.
+    Redirect to CAS login page.
     ---
     tags:
       - User
-    parameters:
-      - in: body
-        name: body
-        description: Login credentials.
-        required: true
+    responses:
+      302:
+        description: Redirect to CAS authentication page.
+    """
+    # 构建 CAS 授权 URL
+    cas_url = (
+        f"{settings.CAS_CONFIG.get('authorize_url')}?"
+        f"response_type=code&"
+        f"client_id={settings.CAS_CONFIG.get('client_id')}&"
+        f"redirect_uri={settings.CAS_CONFIG.get('redirect_uri')}"
+    )
+    return redirect(cas_url)
+
+
+@manager.route("/cas_login_url", methods=["GET"])  # noqa: F821
+def get_cas_login_url():
+    """
+    Get CAS login URL for frontend redirect.
+    ---
+    tags:
+      - User
+    responses:
+      200:
+        description: CAS login URL.
         schema:
           type: object
           properties:
-            email:
+            url:
               type: string
-              description: User email.
-            password:
-              type: string
-              description: User password.
-    responses:
-      200:
-        description: Login successful.
-        schema:
-          type: object
-      401:
-        description: Authentication failed.
-        schema:
-          type: object
+              description: CAS authorization URL.
     """
-    if not request.json:
-        return get_json_result(
-            data=False, code=settings.RetCode.AUTHENTICATION_ERROR, message="Unauthorized!"
-        )
+    cas_url = (
+        f"{settings.CAS_CONFIG.get('authorize_url')}?"
+        f"response_type=code&"
+        f"client_id={settings.CAS_CONFIG.get('client_id')}&"
+        f"redirect_uri={settings.CAS_CONFIG.get('redirect_uri')}"
+    )
+    return get_json_result(data={"url": cas_url})
 
-    email = request.json.get("email", "")
-    users = UserService.query(email=email)
-    if not users:
-        return get_json_result(
-            data=False,
-            code=settings.RetCode.AUTHENTICATION_ERROR,
-            message=f"Email: {email} is not registered!",
-        )
 
-    password = request.json.get("password")
+@manager.route("/cas_callback", methods=["GET"])  # noqa: F821
+def cas_callback():
+    """
+    ZIME CAS OAuth callback endpoint.
+    统一身份认证回调接口，用于处理 CAS 登录后的回调
+    ---
+    tags:
+      - OAuth
+    parameters:
+      - in: query
+        name: code
+        type: string
+        required: true
+        description: Authorization code from ZIME CAS.
+      - in: query
+        name: state
+        type: string
+        required: false
+        description: Optional state parameter for CSRF protection.
+    responses:
+      302:
+        description: Redirect to homepage with auth token or error.
+    """
+    import requests
+
+    code = request.args.get("code")
+    if not code:
+        return redirect("/?error=Missing authorization code")
+
+    # Step 2: 使用 code 换取 access_token
     try:
-        password = decrypt(password)
-    except BaseException:
-        return get_json_result(
-            data=False, code=settings.RetCode.SERVER_ERROR, message="Fail to crypt password"
+        token_response = requests.get(
+            settings.CAS_CONFIG.get("access_token_url"),
+            params={
+                "client_id": settings.CAS_CONFIG.get("client_id"),
+                "client_secret": settings.CAS_CONFIG.get("client_secret"),
+                "code": code,
+                "redirect_uri": settings.CAS_CONFIG.get("redirect_uri"),
+            },
+            timeout=10
         )
+        token_data = token_response.json()
 
-    user = UserService.query_user(email, password)
-    if user:
-        response_data = user.to_json()
-        user.access_token = get_uuid()
-        login_user(user)
-        user.update_time = (current_timestamp(),)
-        user.update_date = (datetime_format(datetime.now()),)
-        user.save()
-        msg = "Welcome back!"
-        return construct_response(data=response_data, auth=user.get_id(), message=msg)
-    else:
-        return get_json_result(
-            data=False,
-            code=settings.RetCode.AUTHENTICATION_ERROR,
-            message="Email and password do not match!",
-        )
+        if "errorcode" in token_data:
+            error_msg = token_data.get("errormsg", "Token exchange failed")
+            logging.error(f"CAS token exchange failed: {error_msg}")
+            return redirect(f"/?error={error_msg}")
 
+        access_token = token_data.get("access_token")
+        if not access_token:
+            return redirect("/?error=Failed to get access token")
 
-@manager.route("/github_callback", methods=["GET"])  # noqa: F821
-def github_callback():
-    """
-    GitHub OAuth callback endpoint.
-    ---
-    tags:
-      - OAuth
-    parameters:
-      - in: query
-        name: code
-        type: string
-        required: true
-        description: Authorization code from GitHub.
-    responses:
-      200:
-        description: Authentication successful.
-        schema:
-          type: object
-    """
-    import requests
+    except Exception as e:
+        logging.exception("CAS token exchange failed")
+        return redirect("/?error=Token exchange error")
 
-    res = requests.post(
-        settings.GITHUB_OAUTH.get("url"),
-        data={
-            "client_id": settings.GITHUB_OAUTH.get("client_id"),
-            "client_secret": settings.GITHUB_OAUTH.get("secret_key"),
-            "code": request.args.get("code"),
-        },
-        headers={"Accept": "application/json"},
-    )
-    res = res.json()
-    if "error" in res:
-        return redirect("/?error=%s" % res["error_description"])
+    # Step 3: 使用 access_token 获取用户信息
+    try:
+        user_info = get_cas_user_info(access_token)
+    except Exception as e:
+        logging.exception("CAS user info fetch failed")
+        return redirect("/?error=User info fetch error")
 
-    if "user:email" not in res["scope"].split(","):
-        return redirect("/?error=user:email not in scope")
+    # 用户信息映射
+    user_code = user_info.get("CODE") or user_info.get("id")
+    user_name = user_info.get("XM") or user_code
+    
+    # 生成邮箱（使用工号/学号@zime.edu.cn格式）
+    email_address = f"{user_code}@zime.edu.cn"
 
-    session["access_token"] = res["access_token"]
-    session["access_token_from"] = "github"
-    user_info = user_info_from_github(session["access_token"])
-    email_address = user_info["email"]
     users = UserService.query(email=email_address)
     user_id = get_uuid()
+
     if not users:
-        # User isn't try to register
+        # 新用户自动注册
         try:
-            try:
-                avatar = download_img(user_info["avatar_url"])
-            except Exception as e:
-                logging.exception(e)
-                avatar = ""
             users = user_register(
                 user_id,
                 {
-                    "access_token": session["access_token"],
+                    "access_token": get_uuid(),
                     "email": email_address,
-                    "avatar": avatar,
-                    "nickname": user_info["login"],
-                    "login_channel": "github",
+                    "avatar": "",  # ZIME CAS 暂无头像接口
+                    "nickname": user_name,
+                    "login_channel": "cas",
                     "last_login_time": get_format_time(),
                     "is_superuser": False,
                 },
@@ -183,155 +184,58 @@ def github_callback():
             if len(users) > 1:
                 raise Exception(f"Same email: {email_address} exists!")
 
-            # Try to log in
+            # 登录用户
             user = users[0]
             login_user(user)
-            return redirect("/?auth=%s" % user.get_id())
+            logging.info(f"New user registered via CAS: {email_address}")
+            return redirect(f"/?auth={user.get_id()}")
         except Exception as e:
             rollback_user_registration(user_id)
             logging.exception(e)
-            return redirect("/?error=%s" % str(e))
+            return redirect(f"/?error={str(e)}")
 
-    # User has already registered, try to log in
+    # 已注册用户直接登录
     user = users[0]
     user.access_token = get_uuid()
     login_user(user)
     user.save()
-    return redirect("/?auth=%s" % user.get_id())
+    logging.info(f"User logged in via CAS: {email_address}")
+    return redirect(f"/?auth={user.get_id()}")
 
 
-@manager.route("/feishu_callback", methods=["GET"])  # noqa: F821
-def feishu_callback():
+def get_cas_user_info(access_token):
     """
-    Feishu OAuth callback endpoint.
-    ---
-    tags:
-      - OAuth
-    parameters:
-      - in: query
-        name: code
-        type: string
-        required: true
-        description: Authorization code from Feishu.
-    responses:
-      200:
-        description: Authentication successful.
-        schema:
-          type: object
-    """
-    import requests
-
-    app_access_token_res = requests.post(
-        settings.FEISHU_OAUTH.get("app_access_token_url"),
-        data=json.dumps(
-            {
-                "app_id": settings.FEISHU_OAUTH.get("app_id"),
-                "app_secret": settings.FEISHU_OAUTH.get("app_secret"),
-            }
-        ),
-        headers={"Content-Type": "application/json; charset=utf-8"},
-    )
-    app_access_token_res = app_access_token_res.json()
-    if app_access_token_res["code"] != 0:
-        return redirect("/?error=%s" % app_access_token_res)
-
-    res = requests.post(
-        settings.FEISHU_OAUTH.get("user_access_token_url"),
-        data=json.dumps(
-            {
-                "grant_type": settings.FEISHU_OAUTH.get("grant_type"),
-                "code": request.args.get("code"),
-            }
-        ),
-        headers={
-            "Content-Type": "application/json; charset=utf-8",
-            "Authorization": f"Bearer {app_access_token_res['app_access_token']}",
-        },
-    )
-    res = res.json()
-    if res["code"] != 0:
-        return redirect("/?error=%s" % res["message"])
-
-    if "contact:user.email:readonly" not in res["data"]["scope"].split():
-        return redirect("/?error=contact:user.email:readonly not in scope")
-    session["access_token"] = res["data"]["access_token"]
-    session["access_token_from"] = "feishu"
-    user_info = user_info_from_feishu(session["access_token"])
-    email_address = user_info["email"]
-    users = UserService.query(email=email_address)
-    user_id = get_uuid()
-    if not users:
-        # User isn't try to register
-        try:
-            try:
-                avatar = download_img(user_info["avatar_url"])
-            except Exception as e:
-                logging.exception(e)
-                avatar = ""
-            users = user_register(
-                user_id,
-                {
-                    "access_token": session["access_token"],
-                    "email": email_address,
-                    "avatar": avatar,
-                    "nickname": user_info["en_name"],
-                    "login_channel": "feishu",
-                    "last_login_time": get_format_time(),
-                    "is_superuser": False,
-                },
-            )
-            if not users:
-                raise Exception(f"Fail to register {email_address}.")
-            if len(users) > 1:
-                raise Exception(f"Same email: {email_address} exists!")
-
-            # Try to log in
-            user = users[0]
-            login_user(user)
-            return redirect("/?auth=%s" % user.get_id())
-        except Exception as e:
-            rollback_user_registration(user_id)
-            logging.exception(e)
-            return redirect("/?error=%s" % str(e))
-
-    # User has already registered, try to log in
-    user = users[0]
-    user.access_token = get_uuid()
-    login_user(user)
-    user.save()
-    return redirect("/?auth=%s" % user.get_id())
-
-
-def user_info_from_feishu(access_token):
-    import requests
-
-    headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "Authorization": f"Bearer {access_token}",
+    从 ZIME CAS 获取用户信息
+    
+    返回示例:
+    {
+        "id": "testuser",
+        "CODE": "testuser",  # 工号/学号
+        "XM": "testuser",    # 姓名
+        "DWPF": "XX",        # 部门
     }
-    res = requests.get(
-        "https://open.feishu.cn/open-apis/authen/v1/user_info", headers=headers
-    )
-    user_info = res.json()["data"]
-    user_info["email"] = None if user_info.get("email") == "" else user_info["email"]
-    return user_info
-
-
-def user_info_from_github(access_token):
+    """
     import requests
 
-    headers = {"Accept": "application/json", "Authorization": f"token {access_token}"}
-    res = requests.get(
-        f"https://api.github.com/user?access_token={access_token}", headers=headers
+    response = requests.get(
+        settings.CAS_CONFIG.get("profile_url"),
+        params={"access_token": access_token},
+        timeout=10
     )
-    user_info = res.json()
-    email_info = requests.get(
-        f"https://api.github.com/user/emails?access_token={access_token}",
-        headers=headers,
-    ).json()
-    user_info["email"] = next(
-        (email for email in email_info if email["primary"]), None
-    )["email"]
+
+    data = response.json()
+
+    if "errorcode" in data:
+        raise Exception(f"CAS profile error: {data.get('errormsg')}")
+
+    # 扁平化用户信息
+    user_info = {
+        "id": data.get("id"),
+        "CODE": data.get("attributes", {}).get("CODE"),
+        "XM": data.get("attributes", {}).get("XM"),
+        "DWPF": data.get("attributes", {}).get("DWPF"),
+    }
+
     return user_info
 
 
@@ -531,90 +435,10 @@ def user_register(user_id, user):
     return UserService.query(email=user["email"])
 
 
-@manager.route("/register", methods=["POST"])  # noqa: F821
-@validate_request("nickname", "email", "password")
-def user_add():
-    """
-    Register a new user.
-    ---
-    tags:
-      - User
-    parameters:
-      - in: body
-        name: body
-        description: Registration details.
-        required: true
-        schema:
-          type: object
-          properties:
-            nickname:
-              type: string
-              description: User nickname.
-            email:
-              type: string
-              description: User email.
-            password:
-              type: string
-              description: User password.
-    responses:
-      200:
-        description: Registration successful.
-        schema:
-          type: object
-    """
-    req = request.json
-    email_address = req["email"]
 
-    # Validate the email address
-    if not re.match(r"^[\w\._-]+@([\w_-]+\.)+[\w-]{2,}$", email_address):
-        return get_json_result(
-            data=False,
-            message=f"Invalid email address: {email_address}!",
-            code=settings.RetCode.OPERATING_ERROR,
-        )
+# 注册功能已禁用 - 所有用户通过 CAS 统一身份认证自动注册
 
-    # Check if the email address is already used
-    if UserService.query(email=email_address):
-        return get_json_result(
-            data=False,
-            message=f"Email: {email_address} has already registered!",
-            code=settings.RetCode.OPERATING_ERROR,
-        )
 
-    # Construct user info data
-    nickname = req["nickname"]
-    user_dict = {
-        "access_token": get_uuid(),
-        "email": email_address,
-        "nickname": nickname,
-        "password": decrypt(req["password"]),
-        "login_channel": "password",
-        "last_login_time": get_format_time(),
-        "is_superuser": False,
-    }
-
-    user_id = get_uuid()
-    try:
-        users = user_register(user_id, user_dict)
-        if not users:
-            raise Exception(f"Fail to register {email_address}.")
-        if len(users) > 1:
-            raise Exception(f"Same email: {email_address} exists!")
-        user = users[0]
-        login_user(user)
-        return construct_response(
-            data=user.to_json(),
-            auth=user.get_id(),
-            message=f"{nickname}, welcome aboard!",
-        )
-    except Exception as e:
-        rollback_user_registration(user_id)
-        logging.exception(e)
-        return get_json_result(
-            data=False,
-            message=f"User registration failure, error: {str(e)}",
-            code=settings.RetCode.EXCEPTION_ERROR,
-        )
 
 
 @manager.route("/tenant_info", methods=["GET"])  # noqa: F821
