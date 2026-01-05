@@ -60,12 +60,12 @@ redis:
 #   base_url: ''
 # ZIME CAS 统一身份认证配置
 cas:
-  client_id: 'YOUR_APP_KEY'           # 向学校信息中心申请的 app_key
-  client_secret: 'YOUR_APP_SECRET'    # 向学校信息中心申请的 app_secret
+  client_id: '9Qy5UMKiAs2aoCSlXK'
+  client_secret: 'a11c7090c1cf428a9ca345ff885cade1'
   authorize_url: 'https://account.zime.edu.cn/cas/oauth2.0/authorize'
   access_token_url: 'https://account.zime.edu.cn/cas/oauth2.0/accessToken'
   profile_url: 'https://account.zime.edu.cn/cas/oauth2.0/profile'
-  redirect_uri: 'https://your-domain.com/api/user/cas_callback'  # 修改为实际部署域名
+  redirect_uri: 'http://10.86.100.39/api/user/cas_callback'
 
 # authentication:
 #   client:

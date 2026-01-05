@@ -60,7 +60,7 @@ export default storage;
 // ZIME CAS 统一身份认证配置
 const CAS_CONFIG = {
   authorizeUrl: 'https://account.zime.edu.cn/cas/oauth2.0/authorize',
-  clientId: 'YOUR_APP_KEY', // 需要替换为实际的 app_key
+  clientId: '9Qy5UMKiAs2aoCSlXK',
   redirectUri: window.location.origin + '/api/user/cas_callback',
 };
 
