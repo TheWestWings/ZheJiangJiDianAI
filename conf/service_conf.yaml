@@ -65,7 +65,7 @@ cas:
   authorize_url: 'https://account.zime.edu.cn/cas/oauth2.0/authorize'
   access_token_url: 'https://account.zime.edu.cn/cas/oauth2.0/accessToken'
   profile_url: 'https://account.zime.edu.cn/cas/oauth2.0/profile'
-  redirect_uri: 'http://10.86.100.39/api/user/cas_callback'
+  redirect_uri: 'http://10.86.100.39/v1/user/cas_callback'
 
 # authentication:
 #   client:
