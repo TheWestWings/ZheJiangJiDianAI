@@ -264,22 +264,30 @@ def get_cas_user_info(access_token):
 @login_required
 def log_out():
     """
-    User logout endpoint.
+    User logout endpoint - redirects to CAS logout.
     ---
     tags:
       - User
     security:
       - ApiKeyAuth: []
     responses:
-      200:
-        description: Logout successful.
-        schema:
-          type: object
+      302:
+        description: Redirect to CAS logout page.
     """
+    # 清除本地会话
     current_user.access_token = ""
     current_user.save()
     logout_user()
-    return get_json_result(data=True)
+    
+    # 构建 CAS 退出 URL
+    # CAS 退出后会重定向回首页
+    cas_logout_url = "https://account.zime.edu.cn/cas/logout"
+    redirect_after_logout = settings.CAS_CONFIG.get("redirect_uri", "").replace("/v1/user/cas_callback", "")
+    
+    if redirect_after_logout:
+        cas_logout_url = f"{cas_logout_url}?service={redirect_after_logout}"
+    
+    return redirect(cas_logout_url)
 
 
 @manager.route("/setting", methods=["POST"])  # noqa: F821

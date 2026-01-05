@@ -84,13 +84,12 @@ export const useLogout = () => {
   } = useMutation({
     mutationKey: ['logout'],
     mutationFn: async () => {
-      const { data = {} } = await userService.logout();
-      // 无论后端返回什么，都清除本地存储并跳转
-      message.success(t('message.logout'));
+      // 先清除本地存储
       authorizationUtil.removeAll();
-      // 跳转到首页，由于未登录会触发 CAS 认证
-      window.location.href = '/';
-      return data.code;
+      message.success(t('message.logout'));
+      // 跳转到后端 logout，后端会重定向到 CAS 退出
+      window.location.href = '/v1/user/logout';
+      return 0;
     },
   });
 
