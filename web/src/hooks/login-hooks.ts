@@ -1,6 +1,6 @@
 import { Authorization } from '@/constants/authorization';
 import userService from '@/services/user-service';
-import authorizationUtil, { redirectToLogin } from '@/utils/authorization-util';
+import authorizationUtil from '@/utils/authorization-util';
 import { useMutation } from '@tanstack/react-query';
 import { Form, message } from 'antd';
 import { FormInstance } from 'antd/lib';
@@ -85,11 +85,11 @@ export const useLogout = () => {
     mutationKey: ['logout'],
     mutationFn: async () => {
       const { data = {} } = await userService.logout();
-      if (data.code === 0) {
-        message.success(t('message.logout'));
-        authorizationUtil.removeAll();
-        redirectToLogin();
-      }
+      // 无论后端返回什么，都清除本地存储并跳转
+      message.success(t('message.logout'));
+      authorizationUtil.removeAll();
+      // 跳转到首页，由于未登录会触发 CAS 认证
+      window.location.href = '/';
       return data.code;
     },
   });

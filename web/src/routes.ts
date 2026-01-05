@@ -23,13 +23,13 @@ export enum Routes {
 const routes = [
   {
     path: '/login',
-    component: '@/pages/login',
-    layout: false,
+    // CAS 统一认证 - 访问 /login 时跳转到 CAS
+    redirect: '/v1/user/login',
   },
   {
     path: '/login-next',
-    component: '@/pages/login-next',
-    layout: false,
+    // CAS 统一认证 - 访问 /login-next 时也跳转到 CAS
+    redirect: '/v1/user/login',
   },
   {
     path: '/chat/share',
