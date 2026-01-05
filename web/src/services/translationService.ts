@@ -32,7 +32,7 @@ export class TranslationService {
   // 通过后端API进行翻译
   private async translateViaAPI(text: string): Promise<string> {
     try {
-      const response = await fetch('/api/translate/translate', {
+      const response = await fetch('/v1/translate/translate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export class TranslationService {
   // 检查模型是否已准备就绪
   async isModelReady(): Promise<boolean> {
     try {
-      const response = await fetch('/api/translate/health', {
+      const response = await fetch('/v1/translate/health', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

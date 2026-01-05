@@ -211,7 +211,7 @@ export const useSendMessageWithSse = (
 
               // 首先获取对话信息来获取dialog_id
               const conversationResponse = await fetch(
-                `/api/conversation/get?conversation_id=${body.conversation_id}`,
+                `/v1/conversation/get?conversation_id=${body.conversation_id}`,
                 {
                   headers: {
                     [Authorization]: getAuthorization(),
@@ -234,7 +234,7 @@ export const useSendMessageWithSse = (
                 if (dialogId) {
                   // 获取对话配置信息来检查是否启用跨语言检索
                   const dialogResponse = await fetch(
-                    `/api/dialog/get?dialog_id=${dialogId}`,
+                    `/v1/dialog/get?dialog_id=${dialogId}`,
                     {
                       headers: {
                         [Authorization]: getAuthorization(),
@@ -265,7 +265,7 @@ export const useSendMessageWithSse = (
 
                       // 调用翻译API
                       const translationResponse = await fetch(
-                        '/api/translate/translate',
+                        '/v1/translate/translate',
                         {
                           method: 'POST',
                           headers: {
