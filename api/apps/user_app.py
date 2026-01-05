@@ -270,27 +270,31 @@ def get_cas_user_info(access_token):
 
 
 @manager.route("/logout", methods=["GET"])  # noqa: F821
-@login_required
 def log_out():
     """
     User logout endpoint - redirects to CAS logout.
+    不需要认证，因为前端可能已经清除了 token
     ---
     tags:
       - User
-    security:
-      - ApiKeyAuth: []
     responses:
       302:
         description: Redirect to CAS logout page.
     """
     logging.info(f"=== LOGOUT START ===")
-    logging.info(f"Current user: {current_user.email if current_user else 'None'}")
     
-    # 清除本地会话
-    current_user.access_token = ""
-    current_user.save()
-    logout_user()
-    logging.info("Local session cleared")
+    # 尝试清除当前用户会话（如果有的话）
+    try:
+        if current_user and current_user.is_authenticated:
+            logging.info(f"Current user: {current_user.email}")
+            current_user.access_token = ""
+            current_user.save()
+            logout_user()
+            logging.info("Local session cleared")
+        else:
+            logging.info("No authenticated user to logout")
+    except Exception as e:
+        logging.warning(f"Error during logout cleanup: {e}")
     
     # 构建 CAS 退出 URL
     # CAS 退出后会重定向到 service 参数指定的地址
