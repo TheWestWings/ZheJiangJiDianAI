@@ -32,7 +32,7 @@ export class TranslationService {
   // 通过后端API进行翻译
   private async translateViaAPI(text: string): Promise<string> {
     try {
-      const response = await fetch('/v1/translate/translate', {
+      const response = await fetch('/api/translate/translate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,16 +40,18 @@ export class TranslationService {
         body: JSON.stringify({
           text: text,
           source_lang: 'zh',
-          target_lang: 'en'
-        })
+          target_lang: 'en',
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`翻译API请求失败: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `翻译API请求失败: ${response.status} ${response.statusText}`,
+        );
       }
 
       const data = await response.json();
-      
+
       if (data.code === 0) {
         return data.data.translated_text || text;
       } else {
@@ -69,11 +71,11 @@ export class TranslationService {
   // 检查模型是否已准备就绪
   async isModelReady(): Promise<boolean> {
     try {
-      const response = await fetch('/v1/translate/health', {
+      const response = await fetch('/api/translate/health', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
       });
 
       if (!response.ok) {

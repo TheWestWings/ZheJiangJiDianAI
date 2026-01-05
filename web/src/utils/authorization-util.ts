@@ -61,7 +61,7 @@ export default storage;
 const CAS_CONFIG = {
   authorizeUrl: 'https://account.zime.edu.cn/cas/oauth2.0/authorize',
   clientId: '9Qy5UMKiAs2aoCSlXK',
-  redirectUri: window.location.origin + '/v1/user/cas_callback',
+  redirectUri: window.location.origin + '/api/user/cas_callback',
 };
 
 /**

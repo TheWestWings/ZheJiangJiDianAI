@@ -121,7 +121,7 @@ def register_page(page_path):
     page_name = getattr(page, "page_name", page_name)
     sdk_path = "\\sdk\\" if sys.platform.startswith("win") else "/sdk/"
     url_prefix = (
-        f"/api/{API_VERSION}" if sdk_path in path else f"/{API_VERSION}/{page_name}"
+        f"/api/{API_VERSION}" if sdk_path in path else f"/api/{page_name}"
     )
 
     app.register_blueprint(page.manager, url_prefix=url_prefix)
