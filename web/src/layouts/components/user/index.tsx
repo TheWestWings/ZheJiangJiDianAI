@@ -1,7 +1,8 @@
 import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
+import authorizationUtil from '@/utils/authorization-util';
 import { LogoutOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { Avatar, Dropdown, Space } from 'antd';
+import { Avatar, Dropdown, Space, message } from 'antd';
 import React from 'react';
 
 import styles from '../../index.less';
@@ -9,13 +10,13 @@ import styles from '../../index.less';
 const App: React.FC = () => {
   const { data: userInfo } = useFetchUserInfo();
 
-  // 退出登录
+  // 退出登录 - 跳转到后端 logout，后端会重定向到 CAS 退出
   const handleLogout = () => {
     // 清除本地存储的 token
-    localStorage.removeItem('Authorization');
-    localStorage.removeItem('userInfo');
-    // 跳转到登录页面
-    window.location.href = '/login';
+    authorizationUtil.removeAll();
+    message.success('退出登录成功');
+    // 跳转到后端 logout，触发 CAS 退出
+    window.location.href = '/v1/user/logout';
   };
 
   // 下拉菜单项
