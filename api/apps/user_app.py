@@ -96,6 +96,7 @@ def cas_callback():
     """
     ZIME CAS OAuth callback endpoint.
     统一身份认证回调接口，用于处理 CAS 登录后的回调
+    也处理 CAS 退出后的重定向
     ---
     tags:
       - OAuth
@@ -103,7 +104,7 @@ def cas_callback():
       - in: query
         name: code
         type: string
-        required: true
+        required: false
         description: Authorization code from ZIME CAS.
       - in: query
         name: state
@@ -118,7 +119,15 @@ def cas_callback():
 
     code = request.args.get("code")
     if not code:
-        return redirect("/?error=Missing authorization code")
+        # CAS 退出后重定向到此，没有 code，重定向到 CAS 登录
+        logging.info("CAS callback without code - redirecting to CAS login")
+        cas_url = (
+            f"{settings.CAS_CONFIG.get('authorize_url')}?"
+            f"response_type=code&"
+            f"client_id={settings.CAS_CONFIG.get('client_id')}&"
+            f"redirect_uri={settings.CAS_CONFIG.get('redirect_uri')}"
+        )
+        return redirect(cas_url)
 
     # Step 2: 使用 code 换取 access_token
     try:
