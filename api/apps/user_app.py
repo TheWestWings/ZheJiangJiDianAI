@@ -224,18 +224,39 @@ def get_cas_user_info(access_token):
     )
 
     data = response.json()
+    logging.info(f"CAS profile response: {data}")
 
     if "errorcode" in data:
         raise Exception(f"CAS profile error: {data.get('errormsg')}")
 
+    # 解析 attributes - 可能是 dict 或 list
+    attributes = data.get("attributes", {})
+    
+    # 如果 attributes 是列表，转换为字典
+    if isinstance(attributes, list):
+        # 列表格式可能是 [{"CODE": "xxx"}, {"XM": "yyy"}] 或其他格式
+        attrs_dict = {}
+        for item in attributes:
+            if isinstance(item, dict):
+                attrs_dict.update(item)
+            elif isinstance(item, str):
+                # 可能是 "KEY=VALUE" 格式
+                if "=" in item:
+                    key, value = item.split("=", 1)
+                    attrs_dict[key] = value
+        attributes = attrs_dict
+    elif not isinstance(attributes, dict):
+        attributes = {}
+
     # 扁平化用户信息
     user_info = {
         "id": data.get("id"),
-        "CODE": data.get("attributes", {}).get("CODE"),
-        "XM": data.get("attributes", {}).get("XM"),
-        "DWPF": data.get("attributes", {}).get("DWPF"),
+        "CODE": attributes.get("CODE") if isinstance(attributes, dict) else None,
+        "XM": attributes.get("XM") if isinstance(attributes, dict) else None,
+        "DWPF": attributes.get("DWPF") if isinstance(attributes, dict) else None,
     }
 
+    logging.info(f"Parsed user_info: {user_info}")
     return user_info
 
 
