@@ -283,19 +283,27 @@ def log_out():
       302:
         description: Redirect to CAS logout page.
     """
+    logging.info(f"=== LOGOUT START ===")
+    logging.info(f"Current user: {current_user.email if current_user else 'None'}")
+    
     # 清除本地会话
     current_user.access_token = ""
     current_user.save()
     logout_user()
+    logging.info("Local session cleared")
     
     # 构建 CAS 退出 URL
-    # CAS 退出后会重定向回首页
+    # CAS 退出后会重定向到 service 参数指定的地址
     cas_logout_url = "https://account.zime.edu.cn/cas/logout"
-    redirect_after_logout = settings.CAS_CONFIG.get("redirect_uri", "").replace("/v1/user/cas_callback", "")
+    redirect_uri = settings.CAS_CONFIG.get("redirect_uri", "")
+    logging.info(f"CAS redirect_uri from config: {redirect_uri}")
     
-    if redirect_after_logout:
-        cas_logout_url = f"{cas_logout_url}?service={redirect_after_logout}"
+    # 使用 redirect_uri 作为 service 参数
+    if redirect_uri:
+        cas_logout_url = f"{cas_logout_url}?service={redirect_uri}"
     
+    logging.info(f"Redirecting to CAS logout: {cas_logout_url}")
+    logging.info(f"=== LOGOUT END ===")
     return redirect(cas_logout_url)
 
 
