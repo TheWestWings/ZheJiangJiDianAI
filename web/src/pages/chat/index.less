@@ -140,7 +140,9 @@
 // ========== 移动端响应式样式 ==========
 @media screen and (max-width: 768px) {
   .chatWrapper {
-    // 移动端隐藏历史面板
+    position: relative;
+
+    // 移动端隐藏历史面板（收起时）
     .chatTitleWrapper {
       display: none !important;
     }
@@ -149,9 +151,38 @@
       display: none !important;
     }
 
+    // 移动端展开时显示为浮动面板
+    .chatTitleWrapperMobile {
+      display: flex !important;
+      position: absolute !important;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 100;
+      width: 280px !important;
+      max-width: 80vw;
+      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.15);
+    }
+
     // 隐藏拖拽手柄
     .resizeHandle {
       display: none !important;
     }
   }
+}
+
+// 移动端浮动历史按钮
+.mobileHistoryButton {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 99;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

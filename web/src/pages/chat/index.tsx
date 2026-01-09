@@ -9,6 +9,7 @@ import {
   useGetChatSearchParams,
 } from '@/hooks/chat-hooks';
 import { useTranslate } from '@/hooks/common-hooks';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DeleteOutlined,
   EditOutlined,
@@ -76,6 +77,7 @@ const Chat = () => {
 
   // 历史记录折叠状态 - 默认收起
   const [historyCollapsed, setHistoryCollapsed] = useState(true);
+  const { isMobile } = useIsMobile();
 
   const [fontSize] = useSafeLocalStorageState(
     FONT_SIZE_STORAGE_KEY,
@@ -189,10 +191,22 @@ const Chat = () => {
 
   return (
     <Flex className={styles.chatWrapper}>
+      {/* 移动端浮动历史按钮 */}
+      {isMobile && (
+        <Button
+          type="text"
+          className={styles.mobileHistoryButton}
+          icon={
+            historyCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />
+          }
+          onClick={toggleHistoryCollapsed}
+        />
+      )}
       {/* 可收起的历史记录面板 */}
       <Flex
         className={classNames(styles.chatTitleWrapper, {
           [styles.chatTitleWrapperCollapsed]: historyCollapsed,
+          [styles.chatTitleWrapperMobile]: isMobile && !historyCollapsed,
         })}
         style={{ width: historyCollapsed ? 60 : sidebarWidth }}
       >

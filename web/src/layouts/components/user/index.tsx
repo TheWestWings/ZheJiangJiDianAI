@@ -45,7 +45,7 @@ const App: React.FC = () => {
         )}
         <Avatar
           size={isMobile ? 28 : 32}
-          style={{ marginLeft: isMobile ? 0 : 40 }}
+          style={{ marginLeft: 0 }}
           src={
             userInfo.avatar ??
             'https://picx.zhimg.com/v2-aaf12b68b54b8812e6b449e7368d30cf_l.jpg'

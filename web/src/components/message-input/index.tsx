@@ -11,6 +11,7 @@ import {
   useFetchAvailableKnowledgebases,
   useFetchAvailableModels,
 } from '@/hooks/use-chat-options';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { getExtension } from '@/utils/document-util';
 import { formatBytes } from '@/utils/file-util';
 import {
@@ -127,6 +128,7 @@ const MessageInput = ({
   stopOutputMessage,
 }: IProps) => {
   const { t } = useTranslate('chat');
+  const { isMobile } = useIsMobile();
   const { removeDocument } = useRemoveNextDocument();
   const { deleteDocument } = useDeleteDocument();
   const { data: documentInfos, setDocumentIds } = useFetchDocumentInfosByIds();
@@ -467,7 +469,7 @@ const MessageInput = ({
               <RobotOutlined style={{ color: '#666' }} />
               <Select
                 placeholder="模型"
-                style={{ width: 220 }}
+                style={{ width: isMobile ? 120 : 220 }}
                 value={selectedModel || undefined}
                 onChange={setSelectedModel}
                 options={models?.map((m) => ({
@@ -485,14 +487,16 @@ const MessageInput = ({
               <DatabaseOutlined
                 style={{ color: enableKnowledge ? '#1890ff' : '#666' }}
               />
-              <span
-                style={{
-                  color: enableKnowledge ? '#1890ff' : '#666',
-                  fontSize: 12,
-                }}
-              >
-                知识库
-              </span>
+              {!isMobile && (
+                <span
+                  style={{
+                    color: enableKnowledge ? '#1890ff' : '#666',
+                    fontSize: 12,
+                  }}
+                >
+                  知识库
+                </span>
+              )}
               <Switch
                 size="small"
                 checked={enableKnowledge}
