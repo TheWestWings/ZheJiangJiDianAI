@@ -52,7 +52,6 @@ const RagHeader = () => {
         justifyContent: 'space-between',
         alignItems: 'center',
         height: isMobile ? '56px' : '72px',
-        flexDirection: isMobile ? 'row-reverse' : 'row',
       }}
     >
       <a>
