@@ -170,3 +170,35 @@
     transform: translateY(0);
   }
 }
+
+// ========== 移动端响应式样式 ==========
+@media screen and (max-width: 768px) {
+  .chatContainer {
+    padding: 0 12px 12px 12px;
+
+    .initialContainer {
+      padding: 12px;
+    }
+
+    .initialContent {
+      max-width: 100%;
+    }
+
+    .appTitle {
+      font-size: 24px !important;
+      margin-bottom: 24px !important;
+    }
+
+    .initialInputWrapper {
+      width: 100%;
+    }
+
+    .bottomInputWrapper {
+      padding: 12px 0 0 0;
+    }
+
+    .messageContainer {
+      padding-right: 0;
+    }
+  }
+}

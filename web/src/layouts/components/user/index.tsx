@@ -1,3 +1,4 @@
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
 import authorizationUtil from '@/utils/authorization-util';
 import { LogoutOutlined } from '@ant-design/icons';
@@ -9,6 +10,7 @@ import styles from '../../index.less';
 
 const App: React.FC = () => {
   const { data: userInfo } = useFetchUserInfo();
+  const { isMobile } = useIsMobile();
 
   // 退出登录 - 跳转到后端 logout，后端会重定向到 CAS 退出
   const handleLogout = () => {
@@ -35,10 +37,15 @@ const App: React.FC = () => {
   return (
     <Dropdown menu={{ items }} placement="bottomRight" trigger={['hover']}>
       <Space className={styles.clickAvailable} style={{ cursor: 'pointer' }}>
-        <span style={{ fontSize: 14, color: '#333' }}>{displayName}，欢迎</span>
+        {/* 移动端隐藏欢迎文字 */}
+        {!isMobile && (
+          <span style={{ fontSize: 14, color: '#333' }}>
+            {displayName}，欢迎
+          </span>
+        )}
         <Avatar
-          size={32}
-          style={{ marginLeft: 40 }}
+          size={isMobile ? 28 : 32}
+          style={{ marginLeft: isMobile ? 0 : 40 }}
           src={
             userInfo.avatar ??
             'https://picx.zhimg.com/v2-aaf12b68b54b8812e6b449e7368d30cf_l.jpg'

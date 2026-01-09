@@ -38,40 +38,51 @@
     background-color: rgba(249, 249, 249, 1);
     font-weight: @fontWeight700;
     color: rgba(29, 25, 41, 1);
+
     &::before {
       display: none !important;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked) {
     border-radius: 6px !important;
+
     & a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark) {
     border-radius: 0px !important;
+
     & a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark.first) {
     border-top-left-radius: 6px !important;
     border-bottom-left-radius: 6px !important;
+
     & a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark.last) {
     border-top-right-radius: 6px !important;
     border-bottom-right-radius: 6px !important;
+
     & a {
       color: white;
     }
   }
+
   :global {
     .ant-radio-button-wrapper:nth-child(3) {
       // margin-right: 500px;
     }
+
     .ant-radio-button-wrapper:nth-child(1) {
       // margin-left: 500px;
     }
@@ -86,40 +97,51 @@
     background-color: rgba(249, 249, 249, 0.25);
     font-weight: @fontWeight700;
     color: rgba(29, 25, 41, 1);
+
     &::before {
       display: none !important;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked) {
     border-radius: 6px !important;
+
     & a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark) {
     border-radius: 0px !important;
+
     & a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark.first) {
     border-top-left-radius: 6px !important;
     border-bottom-left-radius: 6px !important;
+
     & a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark.last) {
     border-top-right-radius: 6px !important;
     border-bottom-right-radius: 6px !important;
+
     & a {
       color: white;
     }
   }
+
   :global {
     .ant-radio-button-wrapper:nth-child(3) {
       margin-right: 500px;
     }
+
     .ant-radio-button-wrapper:nth-child(1) {
       margin-left: 500px;
     }
@@ -129,8 +151,24 @@
 .ant-radio-button-wrapper-checked {
   border-radius: 6px !important;
 }
+
 .radioButtonIcon {
   vertical-align: middle;
   max-width: 15px;
   max-height: 15px;
+}
+
+// ========== 移动端响应式样式 ==========
+@media screen and (max-width: 768px) {
+  .logoWrapper {
+    min-width: auto;
+  }
+
+  .appIcon {
+    max-width: 28px;
+  }
+
+  .appName {
+    font-size: 14px;
+  }
 }

@@ -1,6 +1,7 @@
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchAppConf } from '@/hooks/logic-hooks';
 import { useNavigateWithFromState } from '@/hooks/route-hook';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Flex, Layout, Radio, Space, theme } from 'antd';
 import { MouseEventHandler, useCallback, useMemo } from 'react';
 import { useLocation } from 'umi';
@@ -20,6 +21,7 @@ const RagHeader = () => {
   const { t } = useTranslate('header');
   const appConf = useFetchAppConf();
   const { theme: themeRag } = useTheme();
+  const { isMobile } = useIsMobile();
   const tagsData = useMemo(() => [], [t]);
 
   const currentPath = useMemo(() => {
@@ -44,12 +46,12 @@ const RagHeader = () => {
   return (
     <Header
       style={{
-        padding: '0 16px',
+        padding: isMobile ? '0 12px' : '0 16px',
         background: colorBgContainer,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        height: '72px',
+        height: isMobile ? '56px' : '72px',
       }}
     >
       <a>

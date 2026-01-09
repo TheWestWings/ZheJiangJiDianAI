@@ -136,3 +136,22 @@
     display: none; // 隐藏分割线，用背景色区分
   }
 }
+
+// ========== 移动端响应式样式 ==========
+@media screen and (max-width: 768px) {
+  .chatWrapper {
+    // 移动端隐藏历史面板
+    .chatTitleWrapper {
+      display: none !important;
+    }
+
+    .chatTitleWrapperCollapsed {
+      display: none !important;
+    }
+
+    // 隐藏拖拽手柄
+    .resizeHandle {
+      display: none !important;
+    }
+  }
+}
