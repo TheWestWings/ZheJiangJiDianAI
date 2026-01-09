@@ -1,5 +1,6 @@
 .toolbarWrapper {
   min-width: 200px;
+
   :global(.ant-avatar) {
     background-color: rgba(242, 243, 245, 1);
   }
@@ -23,4 +24,13 @@
 
 .language {
   cursor: pointer;
+}
+
+// 移动端样式
+@media screen and (max-width: 768px) {
+  .toolbarWrapper {
+    min-width: auto;
+    display: flex;
+    justify-content: flex-end;
+  }
 }
