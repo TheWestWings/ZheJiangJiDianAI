@@ -165,7 +165,7 @@ const ChatContainer = ({ controller, fontSize = 20 }: IProps) => {
                         key={buildMessageUuidWithRole(message)}
                         item={message}
                         nickname={userInfo.nickname}
-                        avatar={userInfo.avatar}
+                        avatar={userInfo.avatar || ''}
                         avatarDialog={conversation.avatar}
                         reference={buildMessageItemReference(
                           {

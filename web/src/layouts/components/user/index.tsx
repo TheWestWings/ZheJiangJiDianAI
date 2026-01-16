@@ -1,12 +1,14 @@
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
 import authorizationUtil from '@/utils/authorization-util';
-import { LogoutOutlined } from '@ant-design/icons';
+import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Avatar, Dropdown, Space, message } from 'antd';
 import React from 'react';
 
 import styles from '../../index.less';
+
+import DefaultAvatar from '@/assets/default-avatar.png';
 
 const App: React.FC = () => {
   const { data: userInfo } = useFetchUserInfo();
@@ -46,10 +48,8 @@ const App: React.FC = () => {
         <Avatar
           size={isMobile ? 28 : 32}
           style={{ marginLeft: 0 }}
-          src={
-            userInfo.avatar ??
-            'https://picx.zhimg.com/v2-aaf12b68b54b8812e6b449e7368d30cf_l.jpg'
-          }
+          src={userInfo.avatar || DefaultAvatar}
+          icon={<UserOutlined />}
         />
       </Space>
     </Dropdown>

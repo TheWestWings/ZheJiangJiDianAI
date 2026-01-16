@@ -5,6 +5,7 @@ import { IReference, IReferenceChunk } from '@/interfaces/database/chat';
 import classNames from 'classnames';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
+import DefaultAvatar from '@/assets/default-avatar.png';
 import {
   useFetchDocumentInfosByIds,
   useFetchDocumentThumbnailsByIds,
@@ -13,6 +14,7 @@ import { IRegenerateMessage, IRemoveMessageById } from '@/hooks/logic-hooks';
 import { IMessage } from '@/pages/chat/interface';
 import MarkdownContent from '@/pages/chat/markdown-content';
 import { getExtension, isImage } from '@/utils/document-util';
+import { UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Flex, List, Space, Typography } from 'antd';
 import FileIcon from '../file-icon';
 import IndentedTreeModal from '../indented-tree/modal';
@@ -119,7 +121,11 @@ const MessageItem = ({
         >
           {visibleAvatar &&
             (item.role === MessageType.User ? (
-              <Avatar size={40} src={avatar ?? '/logo.svg'} />
+              <Avatar
+                size={40}
+                src={avatar || DefaultAvatar}
+                icon={<UserOutlined />}
+              />
             ) : avatarDialog ? (
               <Avatar size={40} src={avatarDialog} />
             ) : (
